@@ -23,7 +23,6 @@ import { formatIDR } from '@/lib/Helpers';
 import { getAllLayouts } from '@/models/Layout';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { DefaultConfigLayout } from '@/lib/constanta';
-import { ReceiptElement } from '@/components/pages/PageStrukManualClient';
 import PreviewModal from '@/components/modal/PreviewModal';
 
 type ReceiptWithLayout = Prisma.ReceiptGetPayload<{
