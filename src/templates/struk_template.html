@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk Thermal 58mm</title>
+    <style>
+        /* Pengaturan Dasar untuk Simulasi & Print */
+        body {
+            background-color: #f0f2f5 !important; 
+            /* Menggunakan Courier New dengan fallback monospace yang mendukung slashed zero */
+            font-family: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
+            /* Fitur untuk memunculkan garis tengah pada angka 0 jika font mendukung */
+            font-variant-numeric: slashed-zero;
+            font-feature-settings: "zero" 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .receipt {
+            background-color: #ffffff !important;
+            width: 226px; 
+            padding: 25px 12px;
+            position: relative;
+            color: #000;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Efek Bergerigi Atas */
+        .receipt::before {
+            content: "";
+            position: absolute;
+            top: -8px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(-45deg, #ffffff 6px, transparent 0), 
+                        linear-gradient(45deg, #ffffff 6px, transparent 0);
+            background-position: left bottom;
+            background-repeat: repeat-x;
+            background-size: 8px 8px;
+        }
+
+        /* Efek Bergerigi Bawah */
+        .receipt::after {
+            content: "";
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(-45deg, transparent 6px, #ffffff 0), 
+                        linear-gradient(45deg, transparent 6px, #ffffff 0);
+            background-position: left top;
+            background-repeat: repeat-x;
+            background-size: 8px 8px;
+        }
+
+        .header { text-align: center; margin-bottom: 15px; }
+        
+        .logo-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .logo-img {
+            max-width: 100px;
+            height: auto;
+            filter: grayscale(100%) contrast(150%);
+        }
+
+        .logo-txt {
+            font-size: 20px; /* Diperbesar */
+            font-weight: 900; /* Sangat tebal */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header p { 
+            margin: 3px 0; 
+            font-size: 14px; /* Diperbesar */
+            font-weight: 900; 
+            line-height: 1.2; 
+        }
+
+        .separator { 
+            width: 100%;
+            margin: 10px 0; 
+        }
+
+        .info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 6px; /* Margin ditambah agar tidak sesak */
+            font-size: 14px; /* Diperbesar */
+            line-height: 1.1; 
+            gap: 12px; /* Jarak antara label dan value agar tidak menempel */
+        }
+        
+        .info-row span:first-child {
+            padding-right: 5px;
+            white-space: nowrap;
+            font-weight: 900; /* Label dibuat sangat tebal */
+        }
+
+        .info-row span:last-child { 
+            text-align: right; 
+            font-weight: 900; /* Value dibuat sangat tebal */
+            word-break: break-all;
+            flex-shrink: 0;
+        }
+
+        .total-section { text-align: center; margin: 20px 0; }
+        .total-section label, .title_section { 
+            font-size: 14px; 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 900; 
+        }
+        .total-section .amount { 
+            font-size: 24px; /* Diperbesar */
+            font-weight: 900; 
+            border: 3px solid #000; 
+            padding: 8px 16px; 
+            display: inline-block; 
+        }
+
+        .footer-note { 
+            text-align: center; 
+            font-size: 13px; 
+            margin-top: 25px; 
+            line-height: 1.4; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+        }
+
+        @media print {
+            body { 
+                background-color: white !important; 
+                padding: 0; 
+                margin: 0;
+            }
+            .receipt { 
+                box-shadow: none; 
+                margin: 0 auto;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="receipt">
+    {{#each elements}}
+        
+        <!-- LOGO ELEMENT -->
+        {{#if isLogo}}
+            <div class="logo-wrapper">
+                <img src="{{src}}" style="width: {{width}}px; height: auto; max-width: 100%;" class="logo-img">
+            </div>
+        {{/if}}
+
+        <!-- TITLE / TEXT SECTION -->
+        {{#if isTitle}}
+            <div class="title_section" style="text-align: {{alignment}}; font-size: {{fontSize}}px; font-weight: {{fontWeight}}; color: {{color}}; {{#if hasBorder}}border: 2px solid #000; padding: 5px;{{/if}}">
+                {{value}}
+            </div>
+        {{/if}}
+
+        <!-- SEPARATOR -->
+        {{#if isSeparator}}
+            <div class="separator" style="border-top: 2px {{borderType}} {{color}};"></div>
+        {{/if}}
+
+        <!-- INPUT TEXT (Dinamis: Bisa Inline atau Stacked) -->
+        {{#if isInput}}
+            {{#if isTotal}}
+                <!-- Khusus Tampilan Total Keseluruhan (Sesuai Desain Anda) -->
+                <div class="total-section">
+                    {{#if showLabel}}<label>{{label}}</label>{{/if}}
+                    <div class="amount" style="font-size: {{fontSize}}px;">{{value}}</div>
+                </div>
+            {{else}}
+                <!-- Tampilan Baris Biasa -->
+                <div class="info-row" style="{{#if isStacked}}flex-direction: column; align-items: {{#if isCentered}}center{{else}}flex-start{{/if}};{{/if}} {{#if isCentered}}text-align: center; justify-content: center;{{/if}} {{#if hasBorder}}border: 2px solid #000; padding: 8px; margin: 5px 0;{{/if}}">
+                    {{#if showLabel}}
+                        <span style="font-size: {{#if isStacked}}0.85em{{else}}inherit{{/if}}">{{label}}</span>
+                    {{/if}}
+                    <span style="font-size: {{fontSize}}px; font-weight: {{fontWeight}};">{{value}}</span>
+                </div>
+            {{/if}}
+        {{/if}}
+
+    {{/each}}
+
+    <div class="footer-note">
+        *** TERIMA KASIH ***<br>
+        HARAP SIMPAN STRUK INI SEBAGAI<br>
+        BUKTI PEMBAYARAN YANG SAH
+    </div>
+</div>
+
+</body>
+</html>

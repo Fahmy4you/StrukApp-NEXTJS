@@ -1,0 +1,212 @@
+"use server"
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
+import { ROLES } from "@/lib/constanta";
+import { getUserById } from "./User";
+
+export const getAllReceipts = async (filters?: {
+  userId?: string;
+  startDateCreatedAt?: Date;
+  endDateCreatedAt?: Date;
+  startDateUpdatedAt?: Date;
+  endDateUpdatedAt?: Date;
+  sortBy?: keyof Prisma.ReceiptOrderByRelationAggregateInput;
+  order?: "asc" | "desc";
+}) => {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  // 1. Cek apakah user adalah Admin
+  const isAdmin = session.user.role === ROLES[0].value || session.user.role === ROLES[0].id; // "admin"
+
+  try {
+    const receipts = await prisma.receipt.findMany({
+      where: {
+        // Jika Admin: gunakan userId dari parameter (kalau ada), kalau tidak ada ambil semua.
+        // Jika User: abaikan parameter userId dan paksa gunakan ID miliknya sendiri.
+        userId: isAdmin 
+          ? (filters?.userId || undefined) 
+          : session.user.id,
+        
+        ...(filters?.startDateCreatedAt && filters?.endDateCreatedAt && {
+          createdAt: {
+            gte: filters.startDateCreatedAt, // Greater than or equal
+            lte: filters.endDateCreatedAt,   // Less than or equal
+          },
+        }),
+
+        ...(filters?.startDateUpdatedAt && filters?.endDateUpdatedAt && {
+          updatedAt: {
+            gte: filters.startDateUpdatedAt, // Greater than or equal
+            lte: filters.endDateUpdatedAt,   // Less than or equal
+          },
+        }),
+      },
+      include: {
+        layout: true
+      },
+      orderBy: {
+        // Jika sortBy ada, gunakan itu. Jika tidak, default ke createdAt
+        [filters?.sortBy || "createdAt"]: filters?.order || "desc",
+      },
+    });
+
+    return receipts;
+  } catch (error) {
+    console.error("Error fetching receipts :", error);
+    return [];
+  }
+};
+
+export const getReceiptById = async (id: string) => {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  // 1. Cek apakah user adalah Admin
+  const isAdmin = session.user.role === ROLES[0].value || session.user.role === ROLES[0].id; // "admin"
+
+  try {
+    const receipt = await prisma.receipt.findUnique({
+      where: { id },
+      include: {
+        layout: true
+      }
+    });
+
+    if (!receipt) return null;
+
+    // Jika bukan admin dan bukan pemiliknya, blokir akses
+    if (!isAdmin && receipt.userId !== session.user.id) {
+        return null; 
+    }
+
+    return receipt;
+  } catch (error) {
+    console.error("Error fetching receipt by id :", error);
+    return null;
+  }
+};
+
+export const createReceipt = async (data: {
+  nama: string;
+  layoutId: string | null;
+  total: number | null;
+  userId?: string;
+  content: any;
+}) => {
+  const session = await auth();
+  
+  // 1. Validasi awal: Jika tidak ada session atau ID, stop di sini.
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  const isAdmin = session.user.role === ROLES[0].value;
+  let userIdCheck: string;
+
+  if(isAdmin && data.userId != undefined) {
+    userIdCheck = data.userId;
+  } else {
+    userIdCheck = session.user.id;
+  }
+
+  const user = await getUserById(userIdCheck);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  try {
+    const newReceipt = await prisma.receipt.create({
+      data: {
+        nama: data.nama,
+        layoutId: data.layoutId,
+        total: data.total,
+        userId: userIdCheck,
+        content: data.content,
+      },
+    });
+
+    return { success: true, data: newReceipt };
+  } catch (error) {
+    console.error("Error creating receipt:", error);
+    return { success: false, error: "Gagal menyimpan data" };
+  }
+};
+
+export const updateReceipt = async (id: string, data: {
+  userId?: string;
+  content: any;
+}) => {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const isAdmin = session.user.role === ROLES[0].value;
+
+  // 1. Cari data lama untuk cek kepemilikan
+  const existingReceipt = await prisma.receipt.findUnique({
+    where: { id }
+  });
+
+  if (!existingReceipt) throw new Error("Receipt not found");
+
+  // 2. Security Check: Jika bukan admin, pastikan dia pemiliknya
+  if (!isAdmin && existingReceipt.userId !== session.user.id) {
+    throw new Error("Forbidden: Anda tidak memiliki akses ke data ini");
+  }
+
+  // 3. Tentukan userId baru (jika admin ingin mengubah owner)
+  let targetUserId = existingReceipt.userId;
+  if (isAdmin && data.userId) {
+    const userExists = await getUserById(data.userId);
+    if (!userExists) throw new Error("Target user not found");
+    targetUserId = data.userId;
+  }
+
+  try {
+    const updated = await prisma.receipt.update({
+      where: { id },
+      data: {
+        userId: targetUserId,
+        content: data.content,
+      },
+    });
+
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error("Error updating receipt:", error);
+    return { success: false, error: "Gagal memperbarui data" };
+  }
+};
+
+export const deleteReceipt = async (id: string) => {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const isAdmin = session.user.role === ROLES[0].value;
+
+  // 1. Cari data untuk cek validitas & kepemilikan
+  const existingReceipt = await prisma.receipt.findUnique({
+    where: { id }
+  });
+
+  if (!existingReceipt) throw new Error("Receipt not found");
+
+  // 2. Security Check: Bukan admin & bukan pemilik? Blokir.
+  if (!isAdmin && existingReceipt.userId !== session.user.id) {
+    throw new Error("Forbidden: Anda tidak diizinkan menghapus data ini");
+  }
+
+  try {
+    await prisma.receipt.delete({
+      where: { id },
+    });
+
+    return { success: true, message: "Data berhasil dihapus" };
+  } catch (error) {
+    console.error("Error deleting receipt:", error);
+    return { success: false, error: "Gagal menghapus data" };
+  }
+};

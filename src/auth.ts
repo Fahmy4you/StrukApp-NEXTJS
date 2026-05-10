@@ -1,0 +1,47 @@
+import NextAuth from "next-auth"
+import { PrismaAdapter } from "@auth/prisma-adapter"
+import { prisma } from "@/lib/prisma"
+import { authConfig } from "./auth.config"
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  ...authConfig,
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt({ token, user, trigger }) {
+      if (user) {
+        token.role = (user as any).role || "user";
+        token.sub = user.id as string;
+      }
+
+      // Cek database
+      if (token?.sub) {
+        const userExists = await prisma.user.findUnique({
+          where: { id: token.sub as string },
+          select: { id: true }
+        });
+
+        // Jika user "ghaib", hancurkan token dengan paksa
+        if (!userExists) {
+          return null; // Balikkan null untuk memberitahu Auth.js bahwa ini invalid
+        }
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      // Jika jwt mengembalikan null, token di sini akan null. 
+      // Kita harus proteksi agar tidak error.
+      if (token && session.user) {
+        session.user.id = token.sub as string;
+        (session.user as any).role = token.role as string;
+      } else {
+        // Jika token null, kembalikan null agar session hancur total
+        return null as any;
+      }
+      
+      return session;
+    },
+  },
+})

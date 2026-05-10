@@ -2,27 +2,32 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { poppinsFont } from "@/lib/fonts";
 import DarkModeToggle from "@/components/button/DarkModeToggle";
-import { PrinterProvider } from '../context/PrinterContext';
+import DashboardLayoutClient from '@/components/layouts/DashboardLayoutClient';
+import { SessionProvider } from "next-auth/react";
+import { signOut } from "@/auth";
 
 export const metadata: Metadata = {
-  title: "Beranda | Struk Digital - Buat Struk Digital dengan Mudah",
+  title: "Dashboard | Struk Digital - Buat Struk Digital dengan Mudah",
   description: "Aplikasi Pembuatan Struk Digital",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html
       lang="en"
       className={`${poppinsFont.variable} antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <PrinterProvider>
-          {children}
-        </PrinterProvider>
+        <SessionProvider>
+          <DashboardLayoutClient>
+            {children}
+          </DashboardLayoutClient>
+        </SessionProvider>
         <DarkModeToggle/>
       </body>
     </html>
