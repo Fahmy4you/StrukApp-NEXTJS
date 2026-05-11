@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS_FIRST_LOGIN } from "@/lib/constanta"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 1 * 24 * 60 * 60, updateAge: 0 },
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,
