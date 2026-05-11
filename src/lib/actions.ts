@@ -1,6 +1,6 @@
 'use server';
 import { auth, signOut } from "@/auth";
-import { ROLES } from "@/lib/constanta";
+import { DEFAULT_LOGO_RECEIPTS, ROLES } from "@/lib/constanta";
 import { prisma } from "@/lib/prisma";
 import { deleteFile } from "@/lib/file";
 
@@ -27,7 +27,7 @@ export const upsertSettingsAction = async (data: {
       const newData = data.data;
 
       // 1. Tentukan apakah ada file yang perlu dihapus
-      if (oldData?.logo && newData?.logo && oldData.logo !== newData.logo) {
+      if (oldData?.logo && newData?.logo && oldData.logo != newData.logo && oldData.logo != DEFAULT_LOGO_RECEIPTS) {
         if (oldData.logo.startsWith("/image/upload/")) {
           // Kita simpan path-nya saja, JANGAN dihapus dulu
           fileToDelete = oldData.logo;
@@ -42,8 +42,6 @@ export const upsertSettingsAction = async (data: {
 
       // 3. JIKA database sukses, baru hapus file fisiknya
       if (fileToDelete) {
-        // Kita tidak perlu pakai 'await' di sini jika tidak ingin menghambat respons ke user,
-        // tapi sebaiknya tetap pakai agar kita tahu jika ada error di log.
         await deleteFile(fileToDelete);
       }
 
@@ -56,9 +54,6 @@ export const upsertSettingsAction = async (data: {
       return { success: true, data: created };
     }
   } catch (error) {
-    // Jika blok try di atas (termasuk Prisma) gagal, 
-    // kode di bawah 'fileToDelete' tidak akan pernah dieksekusi.
-    // Jadi file lama aman di folder.
     console.error("Gagal simpan settings:", error);
     return { success: false, error: "Gagal menyimpan ke database" };
   }

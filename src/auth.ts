@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
+import { DEFAULT_SETTINGS_FIRST_LOGIN } from "@/lib/constanta"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -44,4 +45,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
+  events: {
+    async createUser({ user }) {
+      if (!user.id) {
+        console.error("Gagal membuat settings: User ID tidak ditemukan.");
+        return;
+      }
+
+      try {
+        await prisma.settings.create({
+          data: {
+            userId: user.id,
+            data: DEFAULT_SETTINGS_FIRST_LOGIN 
+          }
+        });
+        console.log(`Settings otomatis dibuat untuk user: ${user.id}`);
+      } catch (error) {
+        console.error("Gagal membuat settings default:", error);
+      }
+    }
+  }
 })

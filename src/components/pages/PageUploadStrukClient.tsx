@@ -82,27 +82,42 @@ const PageUploadStrukClient = ({settings, config, configId}: {settings : Setting
                     dataType: el.dataType
                 }));
 
-            const res = await fetch("/api/image_to_raw_struk", {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    imageBase64: formData.struk_image.split(",")[1],
-                    mimeType: formData.struk_image.split(";")[0].split(":")[1],
-                    // Kirim daftar field yang dinamis ke AI agar AI tahu apa yang harus dicari
-                    targetFields: fieldsToExtract, 
-                }),
-            });
+            // const res = await fetch("/api/image_to_raw_struk", {
+            //     method: "POST",
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({
+            //         imageBase64: formData.struk_image.split(",")[1],
+            //         mimeType: formData.struk_image.split(";")[0].split(":")[1],
+            //         // Kirim daftar field yang dinamis ke AI agar AI tahu apa yang harus dicari
+            //         targetFields: fieldsToExtract, 
+            //     }),
+            // });
 
-            if (!res.ok) {
-                setAlert({
-                    'type': 'error',
-                    'message': 'Terjadi kesahalan saat OCR, Coba lagi'
-                });
+            // if (!res.ok) {
+            //     setAlert({
+            //         'type': 'error',
+            //         'message': 'Terjadi kesahalan saat OCR, Coba lagi'
+            //     });
 
-                return
-            }
+            //     return
+            // }
 
-            const aiResponse = await res.json();
+            // const aiResponse = await res.json();
+            const aiResponse = {
+                "success": true,
+                "extractedData": {
+                    "kode_referensi": null,
+                    "tanggal": "29/04/2026",
+                    "waktu": "16:03:52",
+                    "nama": "SITI ROISYAH",
+                    "bank": "BCA",
+                    "rekening": "2001090218",
+                    "nominal": "4347925",
+                    "status": "BERHASIL"
+                },
+                "modelUsed": "gemini-3-flash-preview"
+            };
+            console.log(aiResponse);
 
             // 2. Petakan hasil AI ke dalam strukData
             // Pastikan backend mengembalikan object dengan key yang sesuai dengan normalisasi kita
@@ -218,15 +233,31 @@ const PageUploadStrukClient = ({settings, config, configId}: {settings : Setting
         const nominalKey = nominalField ? normalizeKey(nominalField.label || "") : "";
         const nominalValue = Number(strukData[nominalKey]) || 0;
 
+        let finalTotal = nominalValue;
+        let updates: Record<string, any> = {};
+
+        config.forEach((el) => {
+            const key = normalizeKey(el.label || "");
+
+            switch (el.dataType) {
+                case 'Admin_Fee':
+                    // Jika showAdmin false, paksa admin jadi 0 atau kosong
+                    updates[key] = "0";
+                    break;
+                case 'total_keseluruhan':
+                    updates[key] = finalTotal.toString();
+                    break;
+            }
+        });
+
         if (settings) {
             const receiptMeta = getReceiptMetadata(nominalValue, settings);
-            const updates: Record<string, any> = {};
             
             updates['logo'] = receiptMeta.logoPath;
             updates['reference_set'] = receiptMeta.reference_set;
 
             // Tentukan nilai total berdasarkan showAdmin
-            const finalTotal = strukData.showAdmin 
+            finalTotal = strukData.showAdmin 
                 ? receiptMeta.totalAmount 
                 : nominalValue;
 
@@ -239,6 +270,7 @@ const PageUploadStrukClient = ({settings, config, configId}: {settings : Setting
                         break;
                     case 'Admin_Fee':
                         // Jika showAdmin false, paksa admin jadi 0 atau kosong
+                        console.log(receiptMeta.adminFee)
                         updates[key] = strukData.showAdmin ? receiptMeta.adminFee.toString() : "0";
                         break;
                     case 'total_keseluruhan':
@@ -247,11 +279,12 @@ const PageUploadStrukClient = ({settings, config, configId}: {settings : Setting
                 }
             });
 
-            setStrukData(prev => ({
-                ...prev,
-                ...updates
-            }));
         }
+
+        setStrukData(prev => ({
+            ...prev,
+            ...updates
+        }));
     }, [
         strukData[normalizeKey(config.find(el => el.dataType === 'Currency' || el.dataType === 'Nominal')?.label || "")] , 
         settings,

@@ -6,7 +6,8 @@ import {
   Printer,
   Bluetooth,
   BluetoothOff,
-  RefreshCw
+  RefreshCw,
+  Trash
 } from 'lucide-react';
 import { AdminRange, SettingsData } from '@/types/Settings';
 import { AlertLine } from '@/components/alerts/AlertLine';
@@ -432,10 +433,16 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                   <ImageIcon size={48} className="text-slate-300 dark:text-slate-600" />
                 )}
               </div>
-              <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-3 rounded-2xl shadow-xl cursor-pointer hover:bg-blue-700 transition-all hover:scale-110 active:scale-95">
-                <Upload size={20} />
-                <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
-              </label>
+              {logoPreview ? (
+                <button onClick={() => setLogoPreview(null)} className="absolute -bottom-2 -right-2 bg-red-600 text-white p-3 rounded-2xl shadow-xl cursor-pointer hover:bg-red-700 transition-all hover:scale-110 active:scale-95">
+                  <Trash size={20} />
+                </button>
+              ) : (
+                <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-3 rounded-2xl shadow-xl cursor-pointer hover:bg-blue-700 transition-all hover:scale-110 active:scale-95">
+                  <Upload size={20} />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
+                </label>
+              )}
             </div>
             
             <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">

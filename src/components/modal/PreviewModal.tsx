@@ -95,32 +95,23 @@ const PreviewModal: FC<PreviewModalProps> = ({
   
 
   // Fungsi untuk merender elemen berdasarkan tipe config
-  const renderElement = (element: ReceiptElement) => {
+  const renderElement = (element: any) => {
     switch (element.type) {
       case 'input_image':
         return (
-          <div key={element.id} className="flex justify-center mb-6">
-            <div 
-              className="flex items-center justify-center bg-slate-50 border border-slate-100 overflow-hidden"
-              style={{ 
-                width: `${element.width}px`, 
-                height: `${element.height}px`,
-                maxWidth: '100%' 
-              }}
-            >
-              {formData.logo_image || formData.logo || element.value ? (
+          <div key={element.id} className="flex flex-col items-center gap-[5px] mb-[10px]">
+             {element.value ? (
                 <img 
-                  src={formData.logo_image || formData.logo || element.value} 
-                  className="w-full h-full object-contain grayscale contrast-125" 
-                  alt="Logo Toko"
+                  src={element.value} 
+                  style={{ width: `${element.width || 100}px`, height: 'auto' }}
+                  className="grayscale contrast-[1.5] brightness-100" 
+                  alt="Logo"
                 />
-              ) : (
-                <div className="flex flex-col items-center gap-1 opacity-30">
-                  <LucideImage size={24} />
-                  <span className="text-[8px] font-black uppercase tracking-tighter">Logo</span>
+             ) : (
+                <div className="w-20 h-20 bg-slate-100 flex items-center justify-center border-2 border-dashed border-slate-300">
+                  <LucideImage className="text-slate-300" />
                 </div>
-              )}
-            </div>
+             )}
           </div>
         );
 
@@ -131,16 +122,15 @@ const PreviewModal: FC<PreviewModalProps> = ({
             contentEditable
             suppressContentEditableWarning
             style={{
-              fontSize: `${element.fontSize}px`,
+              fontSize: `${element.fontSize || 14}px`,
               textAlign: element.alignment || 'center',
-              fontWeight: element.fontWeight || 'bold',
-              margin: '6px 0',
-              padding: element.hasBorder ? '10px' : '2px 0',
-              border: element.hasBorder ? `2.5px solid ${element.color || '#1a1a1a'}` : 'none',
-              color: element.color || '#1a1a1a',
-              lineHeight: 1.2
+              fontWeight: element.fontWeight || '900',
+              color: '#000',
+              border: element.hasBorder ? '2px solid #000' : 'none',
+              padding: element.hasBorder ? '5px' : '0',
+              marginBottom: '8px'
             }}
-            className="outline-none focus:bg-blue-50 uppercase tracking-tight"
+            className="outline-none focus:bg-yellow-50 uppercase leading-tight"
           >
             {element.value}
           </div>
@@ -148,7 +138,8 @@ const PreviewModal: FC<PreviewModalProps> = ({
 
       case 'input_text':
         const key = normalizeKey(element.label);
-        const rawValue = formData[key] || element.exampleValue || '-';
+        const hasValue = formData[key] !== undefined && formData[key] !== null && formData[key] !== '';
+        const rawValue = hasValue ? formData[key] : '-';
 
         const isCurrency = 
           element.dataType === 'Currency' || 
@@ -158,64 +149,51 @@ const PreviewModal: FC<PreviewModalProps> = ({
           element.label?.toUpperCase().includes('ADMIN');
 
         let displayValue = rawValue;
-
         if (isCurrency && rawValue !== '-') {
-          // Kita hapus karakter non-angka dulu sebelum diformat untuk mencegah double formatting
-          const cleanNumber = String(rawValue).replace(/[^0-9.-]/g, '');
-          displayValue = `Rp ${formatIDR(cleanNumber)}`;
+          displayValue = `Rp ${formatIDR(rawValue)}`;
         }
 
-        if(element.dataType == "Referensi") {
-          if(formData.reference_set.type == 'limited') {
-            displayValue = formData.reference_set.digitLimit && formData.reference_set.digitLimit != 0 ? rawValue.slice(0, formData.reference_set.digitLimit) : rawValue
-            formData[key] = displayValue;
-          }
+        // Tampilan khusus Total Keseluruhan (Boxed)
+        if (element.dataType === 'total_keseluruhan') {
+          return (
+            <div key={element.id} className="text-center my-5">
+              {element.showLabel && <label className="block text-sm font-[900] mb-2 uppercase">{element.label}</label>}
+              <div 
+                contentEditable
+                suppressContentEditableWarning
+                onBlur={(e) => setFormData(prev => ({ ...prev, [key]: e.currentTarget.innerText }))}
+                className="inline-block text-2xl font-[900] border-[3px] border-black px-4 py-2 outline-none focus:bg-yellow-50"
+              >
+                {displayValue}
+              </div>
+            </div>
+          );
         }
 
-        if(element.dataType == "Admin_Fee" && formData.showAdmin == false) {
-            return;
-        }
-        
-        // Cek layout (stacked vs inline)
         const isStacked = element.labelLayout === 'stacked';
         const isCentered = element.position === 'center';
 
         return (
           <div 
             key={element.id} 
-            className={`
-              info-row my-2 
-              ${isStacked ? 'flex flex-col' : 'flex justify-between items-baseline gap-4'}
-              ${isCentered ? 'text-center' : ''}
-            `}
+            className={`flex mb-[6px] gap-3 leading-[1.1] ${isStacked ? 'flex-col' : 'justify-between items-baseline'} ${isCentered ? 'text-center justify-center' : ''}`}
             style={{
-              fontSize: `${element.fontSize}px`,
-              fontWeight: element.fontWeight as any || 'normal',
-              color: element.color || '#1a1a1a',
-              // opacity: element.dataType === 'Hidden' ? 0.6 : 1,
-              border: element.hasBorder ? `2px solid ${element.color || '#1a1a1a'}` : 'none',
+              fontSize: `${element.fontSize || 14}px`,
+              fontWeight: element.fontWeight || '900',
+              border: element.hasBorder ? '2px solid #000' : 'none',
               padding: element.hasBorder ? '8px' : '0',
-              margin: element.hasBorder ? '6px 0' : '0 0 6px 0'
             }}
           >
             {element.showLabel && element.label && (
-              <span className={`uppercase opacity-70 shrink-0 font-bold ${isStacked ? 'mb-1 text-[0.8em]' : ''}`}>
+              <span className={`uppercase whitespace-nowrap font-[900] ${isStacked ? 'text-[0.85em]' : 'pr-[5px]'}`}>
                 {element.label}
               </span>
             )}
             <span 
               contentEditable 
               suppressContentEditableWarning
-              onBlur={(e: React.FocusEvent<HTMLSpanElement>) => {
-                // Gunakan optional chaining atau pastikan target ada
-                const value = e.currentTarget?.innerText ?? "";
-                setFormData(prev => ({ ...prev, [key]: value }));
-              }}
-              className={`
-                leading-tight outline-none focus:bg-blue-50 px-1
-                ${!isStacked ? 'text-right break-all' : ''}
-                ${(element.fontWeight === '900' || (typeof element.fontSize === 'number' && element.fontSize > 18)) ? 'font-black' : 'font-bold'}
-              `}
+              onBlur={(e) => setFormData(prev => ({ ...prev, [key]: e.currentTarget.innerText }))}
+              className={`outline-none focus:bg-yellow-50 font-[900] break-all ${!isStacked ? 'text-right' : ''}`}
             >
               {displayValue}
             </span>
@@ -226,9 +204,9 @@ const PreviewModal: FC<PreviewModalProps> = ({
         return (
           <div 
             key={element.id} 
-            className="my-3" 
+            className="w-full my-[10px]" 
             style={{ 
-              borderTop: `1.5px ${element.style === 'dash' ? 'dashed' : 'solid'} ${element.color || '#333'}` 
+              borderTop: `2px ${element.style === 'dash' ? 'dashed' : 'solid'} #000` 
             }} 
           />
         );
@@ -239,84 +217,100 @@ const PreviewModal: FC<PreviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl h-[90vh] rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-slate-50 dark:bg-slate-900 w-full max-w-5xl h-[92vh] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
         
-        {/* Sisi Kiri: Dynamic Receipt Preview */}
-        <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-6 md:p-12 overflow-y-auto flex flex-col items-center border-r border-slate-100 dark:border-slate-800 custom-scrollbar">
+        {/* Sisi Kiri: Struk Preview (The Paper) */}
+        <div className="flex-1 bg-slate-200 dark:bg-slate-950 p-4 md:p-10 overflow-y-auto flex flex-col items-center custom-scrollbar relative">
           <div className="mb-6 text-center">
-            <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Live Editor</span>
-            <p className="text-[10px] text-slate-500 mt-2 uppercase font-bold tracking-tighter">Klik teks pada struk untuk mengedit langsung</p>
+            <span className="bg-black text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Thermal 58mm Mode</span>
           </div>
-          
-          <div className="receipt-paper bg-white text-[#1a1a1a] w-full max-w-[350px] shadow-2xl p-8 relative font-mono transition-all">
+
+          {/* THE RECEIPT CONTAINER */}
+          <div className="receipt-paper-thermal">
             <style>{`
-              .receipt-paper::before {
-                content: ""; position: absolute; top: -16px; left: 0; width: 100%; height: 16px;
-                background: linear-gradient(-45deg, #ffffff 10px, transparent 0), linear-gradient(45deg, #ffffff 10px, transparent 0);
-                background-position: left bottom; background-repeat: repeat-x; background-size: 16px 16px;
+              .receipt-paper-thermal {
+                background-color: #ffffff;
+                width: 226px;
+                padding: 25px 12px;
+                position: relative;
+                color: #000;
+                box-sizing: border-box;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                font-family: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
+                font-variant-numeric: slashed-zero;
               }
-              .receipt-paper::after {
-                content: ""; position: absolute; bottom: -16px; left: 0; width: 100%; height: 16px;
-                background: linear-gradient(-45deg, transparent 10px, #ffffff 0), linear-gradient(45deg, transparent 10px, #ffffff 0);
-                background-position: left top; background-repeat: repeat-x; background-size: 16px 16px;
+              .receipt-paper-thermal::before {
+                content: ""; position: absolute; top: -8px; left: 0; width: 100%; height: 8px;
+                background: linear-gradient(-45deg, #ffffff 6px, transparent 0), linear-gradient(45deg, #ffffff 6px, transparent 0);
+                background-position: left bottom; background-repeat: repeat-x; background-size: 8px 8px;
               }
-              .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-              .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+              .receipt-paper-thermal::after {
+                content: ""; position: absolute; bottom: -8px; left: 0; width: 100%; height: 8px;
+                background: linear-gradient(-45deg, transparent 6px, #ffffff 0), linear-gradient(45deg, transparent 6px, #ffffff 0);
+                background-position: left top; background-repeat: repeat-x; background-size: 8px 8px;
+              }
+              .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+              .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
             `}</style>
 
-            {/* --- DYNAMIC RENDERING CORE --- */}
-            {config.map((element) => renderElement(element))}
+            {/* DYNAMIC CONTENT */}
+            {config.map((element: any) => renderElement(element))}
 
-            <div className="footer-note mt-8 text-center text-[10px] font-bold uppercase opacity-40 leading-relaxed">
-              *** TERIMA KASIH ***<br />HARAP SIMPAN STRUK INI
+            {/* STATIC FOOTER FROM TEMPLATE */}
+            <div className="mt-[25px] text-center text-[13px] font-[900] uppercase leading-[1.4]">
+              *** TERIMA KASIH ***<br />
+              HARAP SIMPAN STRUK INI SEBAGAI<br />
+              BUKTI PEMBAYARAN YANG SAH
             </div>
           </div>
         </div>
 
-        {/* Sisi Kanan: Action Buttons */}
-        <div className="w-full md:w-[320px] p-8 flex flex-col justify-between bg-white dark:bg-slate-900 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
-            <div className="space-y-8">
-              <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-black text-slate-800 dark:text-white uppercase text-sm tracking-widest">Opsi Simpan</h4>
-                    <p className="text-xs text-slate-500 mt-1">Pilih format struk Anda</p>
-                  </div>
-                  <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition group">
-                    <X size={20} className="text-slate-400 group-hover:rotate-90 transition-transform" />
-                  </button>
+        {/* Sisi Kanan: Sidebar Actions */}
+        <div className="w-full md:w-[350px] p-8 flex flex-col justify-between bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
+          <div className="space-y-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="font-black text-slate-800 dark:text-white uppercase text-sm tracking-tighter">Opsi Penyimpanan</h4>
+                <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold">Siap cetak ke printer bluetooth</p>
               </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                  <ActionButton 
-                    onClick={handleDownloadPDF} 
-                    loading={isGenerating} 
-                    icon={<Download size={20}/>} 
-                    title="Simpan PDF" 
-                    desc="Cocok untuk Printer Thermal"
-                    color="blue"
-                  />
-                  <ActionButton 
-                    onClick={handleDownloadImage} 
-                    loading={isGenerating} 
-                    icon={<LucideImage size={20}/>} 
-                    title="Simpan Gambar" 
-                    desc="Format PNG HD"
-                    color="purple"
-                  />
-                  <ActionButton 
-                    onClick={handlePrintFisik} 
-                    loading={isGenerating} 
-                    disabled={!printerDevice || isGenerating} // Nonaktifkan jika tidak ada printer
-                    icon={printerDevice ? <Printer size={20}/> : <BluetoothOff size={20} className="opacity-50"/>} 
-                    title={printerDevice ? "Print Fisik" : "Hubungkan Printer"} 
-                    desc={printerDevice ? "Cetak via API Puppeteer" : "Printer Offline / Belum Pairing"}
-                    color={printerDevice ? "green" : "gray"} // Warna abu-abu jika mati
-                  />
-              </div>
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition">
+                <X size={20} className="text-slate-400" />
+              </button>
             </div>
-            
-            <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-widest">Receipt Generator v2.0</p>
+
+            <div className="space-y-3">
+              <ActionButton 
+                onClick={handleDownloadPDF} 
+                loading={isGenerating} 
+                icon={<Download size={20}/>} 
+                title="Simpan PDF" 
+                desc="Kualitas standar thermal"
+                color="blue"
+              />
+              <ActionButton 
+                onClick={handleDownloadImage} 
+                loading={isGenerating} 
+                icon={<LucideImage size={20}/>} 
+                title="Simpan Gambar" 
+                desc="Format PNG Contrast Tinggi"
+                color="purple"
+              />
+              <ActionButton 
+                onClick={handlePrintFisik} 
+                loading={isGenerating} 
+                disabled={!printerDevice || isGenerating}
+                icon={printerDevice ? <Printer size={20}/> : <BluetoothOff size={20}/>} 
+                title="Cetak Langsung" 
+                desc={printerDevice ? "Kirim ke Printer Thermal" : "Printer belum terhubung"}
+                color={printerDevice ? "green" : "gray"}
+              />
+            </div>
+          </div>
+          
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">System Thermal V2.5</span>
+          </div>
         </div>
       </div>
     </div>

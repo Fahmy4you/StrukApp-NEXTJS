@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,14 @@ const ai = new GoogleGenAI({ apiKey });
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: "Unauthorized: Silahkan login terlebih dahulu" }, 
+        { status: 401 }
+      );
+    }
+
     const { imageBase64, mimeType, targetFields } = await req.json();
     
     if (!imageBase64) return NextResponse.json({ error: "Gambar kosong" }, { status: 400 });
@@ -29,6 +38,8 @@ export async function POST(req: Request) {
     - Untuk nominal/angka/currency, kembalikan hanya angka (number) atau string angka murni.
     - Jika data tidak ditemukan, isi dengan null.
     - Status harus berisi "BERHASIL" atau "GAGAL".`;
+
+    console.log(prompt)
 
     const contents = [
       { 

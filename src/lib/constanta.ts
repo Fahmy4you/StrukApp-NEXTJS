@@ -21,6 +21,25 @@ export const ROLES = [
 export const NOT_SHOW_IN_PREVIEW = ['Hidden', 'total_keseluruhan', 'Admin_Fee', 'Store_Name'];
 export const NOT_TASK_AI_TYPE_INPUT = ['Hidden', 'total_keseluruhan', 'Admin_Fee', 'Store_Name'];
 
+export const DEFAULT_LOGO_RECEIPTS = "/image/upload/logo/defaultLogo.png";
+export const DEFAULT_SETTINGS_FIRST_LOGIN = {
+  "logo": DEFAULT_LOGO_RECEIPTS,
+  "adminFee": {
+    "type": "fixed",
+    "ranges": [],
+    "fixedValue": 2500,
+    "multiplier": {
+      "fee": 2500,
+      "step": 10000
+    }
+  },
+  "shopName": "StrukApp Digital",
+  "reference": {
+    "type": "limited",
+    "digitLimit": 10
+  }
+}
+
 export const DefaultConfigLayout: ReceiptElement[] = [
     {
       "id": "1",

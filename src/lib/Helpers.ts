@@ -37,6 +37,8 @@ export const getReceiptMetadata = (nominal: number, settings: SettingsData) => {
 
     if (matchedRange) {
       calculatedAdmin = matchedRange.fee;
+    } else {
+      calculatedAdmin = 0;
     }
   } else if (settings.adminFee.type === 'multiplier') {
     // Contoh: tiap kelipatan 10.000 biaya 2.500

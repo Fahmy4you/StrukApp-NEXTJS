@@ -97,15 +97,31 @@ export default function PageStrukManualClient({settings, config, configId}: {set
         const nominalKey = nominalField ? normalizeKey(nominalField.label || "") : "";
         const nominalValue = Number(formData[nominalKey]) || 0;
 
+        let finalTotal = nominalValue;
+        let updates: Record<string, any> = {};
+
+        config.forEach((el) => {
+            const key = normalizeKey(el.label || "");
+
+            switch (el.dataType) {
+                case 'Admin_Fee':
+                    // Jika showAdmin false, paksa admin jadi 0 atau kosong
+                    updates[key] = "0";
+                    break;
+                case 'total_keseluruhan':
+                    updates[key] = finalTotal.toString();
+                    break;
+            }
+        });
+
         if (settings) {
             const receiptMeta = getReceiptMetadata(nominalValue, settings);
-            const updates: Record<string, any> = {};
             
             updates['logo'] = receiptMeta.logoPath;
             updates['reference_set'] = receiptMeta.reference_set;
 
             // Tentukan nilai total berdasarkan showAdmin
-            const finalTotal = formData.showAdmin 
+            finalTotal = formData.showAdmin 
                 ? receiptMeta.totalAmount 
                 : nominalValue;
 
@@ -118,6 +134,7 @@ export default function PageStrukManualClient({settings, config, configId}: {set
                         break;
                     case 'Admin_Fee':
                         // Jika showAdmin false, paksa admin jadi 0 atau kosong
+                        console.log(receiptMeta.adminFee)
                         updates[key] = formData.showAdmin ? receiptMeta.adminFee.toString() : "0";
                         break;
                     case 'total_keseluruhan':
@@ -126,11 +143,12 @@ export default function PageStrukManualClient({settings, config, configId}: {set
                 }
             });
 
-            setFormData(prev => ({
-                ...prev,
-                ...updates
-            }));
         }
+
+        setFormData(prev => ({
+            ...prev,
+            ...updates
+        }));
     }, [
         formData[normalizeKey(config.find(el => el.dataType === 'Currency' || el.dataType === 'Nominal')?.label || "")] , 
         settings,
@@ -225,6 +243,7 @@ export default function PageStrukManualClient({settings, config, configId}: {set
     });
 
     if(saveInHistory.success) {
+        console.log(formData)
         setShowModal(true);
     } else {
         setAlert({

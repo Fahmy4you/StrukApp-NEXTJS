@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { formatIDR } from '@/lib/Helpers';
 import { DefaultConfigLayout } from '@/lib/constanta';
+import { auth } from '@/auth';
 
 const normalizeKey = (label?: string) => label ? label.toLowerCase().trim().replace(/\s+/g, '_') : '';
 
@@ -14,6 +15,14 @@ if (!Handlebars.helpers.eq) {
 }
 
 export async function POST(req: Request) {
+    const session = await auth();
+    if (!session || !session.user) {
+        return NextResponse.json(
+            { error: "Unauthorized: Silahkan login terlebih dahulu" }, 
+            { status: 401 }
+        );
+    }
+        
     try {
         const body = await req.json();
         // Ambil 'downloadType' dari client (default ke pdf jika tidak ada)
