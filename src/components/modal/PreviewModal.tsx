@@ -1,11 +1,13 @@
-import React, { FC, Dispatch, SetStateAction, ReactNode } from 'react';
-import { X, Download, Image as LucideImage, Printer, Loader2, BluetoothOff } from 'lucide-react';
+'use client';
+import React, { FC, Dispatch, SetStateAction, ReactNode, useEffect } from 'react';
+import { X, Image as LucideImage, Printer, Loader2, BluetoothOff, FileText } from 'lucide-react';
 import { ReceiptElement } from '../pages/PageStrukManualClient';
-import { formatIDR } from '@/lib/Helpers';
+import { calculateReceiptTotal, formatIDR, formatReceiptDate, getReceiptMetadata } from '@/lib/Helpers';
 import { DownloadStruk } from '@/lib/Download';
 import { usePrinter } from '@/context/PrinterContext';
-
-// --- INTERFACES & TYPES ---
+import { printImageToThermal } from '@/lib/PrinterThermal';
+import { SettingsData } from '../../types/Settings';
+import { fontConfig, weightConstanta } from '@/lib/constanta';
 
 interface PreviewModalProps {
   show: boolean;
@@ -15,11 +17,11 @@ interface PreviewModalProps {
   setFormData: Dispatch<SetStateAction<Record<string, any>>>;
   isGenerating: boolean;
   setIsGenerating: Dispatch<SetStateAction<boolean>>;
+  settings: SettingsData | null;
 }
 
-// --- HELPERS ---
 const normalizeKey = (label?: string): string => {
-  if (!label) return "unknown_field"; // Berikan fallback agar tidak null
+  if (!label) return "unknown_field";
   return label.toLowerCase().trim().replace(/\s+/g, '_');
 };
 
@@ -30,24 +32,22 @@ const PreviewModal: FC<PreviewModalProps> = ({
   formData,
   setFormData,
   isGenerating,
-  setIsGenerating
+  setIsGenerating,
+  settings
 }) => {
-  if (!show) return null;
-  const { printerDevice, isPrinterConnected } = usePrinter();
+  const { printerDevice } = usePrinter();
 
   const handleDownloadPDF = async () => {
-      setIsGenerating(true);
-      try {
-          // Kirim strukData dan config layout saat ini
-          await DownloadStruk(formData, config);
-          // Tambahkan delay kecil untuk memberi napas pada UI
-          await new Promise(resolve => setTimeout(resolve, 500));
-      } catch {
-          console.error("Gagal Generate File");
-      } finally {
-          setIsGenerating(false);
-      }
-  }
+    setIsGenerating(true);
+    try {
+      await DownloadStruk(formData, config);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch {
+      console.error("Gagal Generate File");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handlePrintFisik = async () => {
     if (!printerDevice) return;
@@ -80,40 +80,75 @@ const PreviewModal: FC<PreviewModalProps> = ({
   };
 
   const handleDownloadImage = async () => {
-      setIsGenerating(true);
-      try {
-          // Kirim strukData dan config layout saat ini
-          await DownloadStruk(formData, config, 'png');
-          // Tambahkan delay kecil untuk memberi napas pada UI
-          await new Promise(resolve => setTimeout(resolve, 500));
-      } catch {
-          console.error("Gagal Generate File");
-      } finally {
-          setIsGenerating(false);
-      }
-  }
+    setIsGenerating(true);
+    try {
+      await DownloadStruk(formData, config, 'png');
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch {
+      console.error("Gagal Generate File");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!config || !Array.isArray(config)) return;
+
+    const { updates } = calculateReceiptTotal({ config, formData, settings });
+
+    setFormData(prev => {
+        const isDifferent = Object.keys(updates).some(k => prev[k] !== updates[k]);
+        if (!isDifferent) return prev;
+        return { ...prev, ...updates };
+    });
+
+  }, [
+      formData[normalizeKey(config?.find(el => el.dataType === 'Currency' || el.dataType === 'Nominal')?.label || "")], 
+      formData[normalizeKey(config?.find(el => el.dataType === 'Admin_Fee')?.label || "")],
+      formData[normalizeKey(config?.find(el => el.dataType === 'Referensi')?.label || "")],
+      formData.showAdmin,
+      settings,
+      config
+  ]);
   
 
-  // Fungsi untuk merender elemen berdasarkan tipe config
   const renderElement = (element: any) => {
+    const mTop = `${element.marginTop ?? 0}px`;
+    const mBottom = `${element.marginBottom ?? 0}px`;
+
     switch (element.type) {
       case 'input_image':
-        return (
-          <div key={element.id} className="flex flex-col items-center gap-[5px] mb-[10px]">
-             {element.value ? (
-                <img 
-                  src={element.value} 
-                  style={{ width: `${element.width || 100}px`, height: 'auto' }}
-                  className="grayscale contrast-[1.5] brightness-100" 
-                  alt="Logo"
-                />
-             ) : (
-                <div className="w-20 h-20 bg-slate-100 flex items-center justify-center border-2 border-dashed border-slate-300">
-                  <LucideImage className="text-slate-300" />
-                </div>
-             )}
-          </div>
-        );
+        if(element.source == 'logo') {
+          if(!settings) return null;
+          if (!settings.logo || settings.logo == "") return null;
+          return (
+            <div key={element.id} className="flex flex-col items-center gap-[5px]" style={{ marginTop: mTop, marginBottom: mBottom }}>
+              <img 
+                src={settings.logo} 
+                style={{ width: `${element.width || 100}px`, height: 'auto' }}
+                className="grayscale contrast-[1.5] brightness-100" 
+                alt="Logo"
+              />
+            </div>
+          );
+        } else {
+          return (
+            <div key={element.id} className="flex flex-col items-center gap-[5px]" style={{ marginTop: mTop, marginBottom: mBottom }}>
+               {element.value ? (
+                  <img 
+                    src={element.value} 
+                    style={{ width: `${element.width || 100}px`, height: 'auto' }}
+                    className="grayscale contrast-[1.5] brightness-100" 
+                    alt="Logo"
+                  />
+               ) : (
+                  <div className="w-20 h-20 bg-slate-100 flex items-center justify-center border-2 border-dashed border-slate-300">
+                    <LucideImage className="text-slate-300" />
+                  </div>
+               )}
+            </div>
+          );
+        }
 
       case 'text':
         return (
@@ -124,11 +159,13 @@ const PreviewModal: FC<PreviewModalProps> = ({
             style={{
               fontSize: `${element.fontSize || 14}px`,
               textAlign: element.alignment || 'center',
-              fontWeight: element.fontWeight || '900',
-              color: '#000',
+              fontWeight: weightConstanta[element.fontWeight as CustomFontWeight] || 400,
+              color: element.color || '#000',
               border: element.hasBorder ? '2px solid #000' : 'none',
               padding: element.hasBorder ? '5px' : '0',
-              marginBottom: '8px'
+              marginTop: mTop,
+              marginBottom: mBottom,
+              letterSpacing: `${element.letterSpacing ?? 0}px`
             }}
             className="outline-none focus:bg-yellow-50 uppercase leading-tight"
           >
@@ -149,51 +186,63 @@ const PreviewModal: FC<PreviewModalProps> = ({
           element.label?.toUpperCase().includes('ADMIN');
 
         let displayValue = rawValue;
-        if (isCurrency && rawValue !== '-') {
+        if (isCurrency && rawValue != '-') {
           displayValue = `Rp ${formatIDR(rawValue)}`;
         }
 
-        // Tampilan khusus Total Keseluruhan (Boxed)
-        if (element.dataType === 'total_keseluruhan') {
-          return (
-            <div key={element.id} className="text-center my-5">
-              {element.showLabel && <label className="block text-sm font-[900] mb-2 uppercase">{element.label}</label>}
-              <div 
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={(e) => setFormData(prev => ({ ...prev, [key]: e.currentTarget.innerText }))}
-                className="inline-block text-2xl font-[900] border-[3px] border-black px-4 py-2 outline-none focus:bg-yellow-50"
-              >
-                {displayValue}
-              </div>
-            </div>
-          );
-        }
+        const cleanCurrencyInput = (text: string) => {
+          const cleanNumber = text.replace(/[^0-9]/g, '');
+          return cleanNumber === '' ? '0' : cleanNumber;
+        };
 
         const isStacked = element.labelLayout === 'stacked';
         const isCentered = element.position === 'center';
+        const rowGap = `${element.gap ?? 12}px`;
+        
+        const isDate = element.dataType === 'Date';
+        if(isDate && rawValue != '-') {
+          displayValue = formatReceiptDate(rawValue);
+        }
 
         return (
           <div 
             key={element.id} 
-            className={`flex mb-[6px] gap-3 leading-[1.1] ${isStacked ? 'flex-col' : 'justify-between items-baseline'} ${isCentered ? 'text-center justify-center' : ''}`}
+            className={`flex leading-[1.1] ${isStacked ? 'flex-col' : 'justify-between items-baseline'} ${isCentered ? 'text-center justify-center' : ''}`}
             style={{
-              fontSize: `${element.fontSize || 14}px`,
-              fontWeight: element.fontWeight || '900',
-              border: element.hasBorder ? '2px solid #000' : 'none',
+              color: element.color || '#000',
+              border: element.hasBorder ? `2px solid ${element.color || '#000'}` : 'none',
               padding: element.hasBorder ? '8px' : '0',
+              marginTop: mTop,
+              marginBottom: mBottom,
+              gap: rowGap
             }}
           >
             {element.showLabel && element.label && (
-              <span className={`uppercase whitespace-nowrap font-[900] ${isStacked ? 'text-[0.85em]' : 'pr-[5px]'}`}>
+              <span 
+                className={`uppercase ${isStacked ? 'text-[0.85em]' : 'pr-[5px]'}`}
+                style={{ 
+                  fontSize: `${element.labelFontSize || 12}px`,
+                  fontWeight: weightConstanta[element.labelFontWeight as CustomFontWeight] || 400, // Pemisahan Weight Label
+                  letterSpacing: `${element.labelLetterSpacing ?? 0}px` // Pemisahan Spacing Label
+                }}
+              >
                 {element.label}
               </span>
             )}
             <span 
               contentEditable 
               suppressContentEditableWarning
-              onBlur={(e) => setFormData(prev => ({ ...prev, [key]: e.currentTarget.innerText }))}
-              className={`outline-none focus:bg-yellow-50 font-[900] break-all ${!isStacked ? 'text-right' : ''}`}
+              onBlur={(e) => {
+                const rawText = e.currentTarget?.innerText || '';
+                const finalValue = isCurrency ? cleanCurrencyInput(rawText) : rawText;
+                setFormData(prev => ({ ...prev, [key]: finalValue }));
+              }}
+              className={`outline-none focus:bg-yellow-50 break-all ${!isStacked && !isCentered ? 'text-right' : ''}`}
+              style={{ 
+                fontSize: `${element.valueFontSize || 12}px`,
+                fontWeight: weightConstanta[element.valueFontWeight as CustomFontWeight] || 400, // Pemisahan Weight Value
+                letterSpacing: `${element.valueLetterSpacing ?? 0}px` // Pemisahan Spacing Value
+              }}
             >
               {displayValue}
             </span>
@@ -201,12 +250,34 @@ const PreviewModal: FC<PreviewModalProps> = ({
         );
 
       case 'separator':
+        const lineThickness = `${element.thickness ?? 2}px`; // Menggunakan data thickness dinamis
+
+        if (element.style === 'double_line') {
+          return (
+            <div key={element.id} className="w-full flex flex-col justify-between" style={{ marginTop: mTop, marginBottom: mBottom, height: `calc(${lineThickness} * 2 + 2px)` }}>
+              <div style={{ borderTop: `${lineThickness} solid ${element.color || '#000'}` }}></div>
+              <div style={{ borderTop: `${lineThickness} solid ${element.color || '#000'}` }}></div>
+            </div>
+          );
+        }
+        
+        if (element.style === 'double_dash') {
+          return (
+            <div key={element.id} className="w-full flex flex-col justify-between" style={{ marginTop: mTop, marginBottom: mBottom, height: `calc(${lineThickness} * 2 + 2px)` }}>
+              <div style={{ borderTop: `${lineThickness} dashed ${element.color || '#000'}` }}></div>
+              <div style={{ borderTop: `${lineThickness} dashed ${element.color || '#000'}` }}></div>
+            </div>
+          );
+        }
+
         return (
           <div 
             key={element.id} 
-            className="w-full my-[10px]" 
+            className="w-full" 
             style={{ 
-              borderTop: `2px ${element.style === 'dash' ? 'dashed' : 'solid'} #000` 
+              borderTop: `${lineThickness} ${element.style === 'dash' ? 'dashed' : 'solid'} ${element.color || '#000'}`,
+              marginTop: mTop,
+              marginBottom: mBottom
             }} 
           />
         );
@@ -216,8 +287,11 @@ const PreviewModal: FC<PreviewModalProps> = ({
     }
   };
 
+  if (!show) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+      <link href={fontConfig.googleFontsUrl} rel="stylesheet" />
+
       <div className="bg-slate-50 dark:bg-slate-900 w-full max-w-5xl h-[92vh] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
         
         {/* Sisi Kiri: Struk Preview (The Paper) */}
@@ -237,7 +311,7 @@ const PreviewModal: FC<PreviewModalProps> = ({
                 color: #000;
                 box-sizing: border-box;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                font-family: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
+                font-family: '${fontConfig.name}', ${fontConfig.fallback};
                 font-variant-numeric: slashed-zero;
               }
               .receipt-paper-thermal::before {
@@ -256,13 +330,6 @@ const PreviewModal: FC<PreviewModalProps> = ({
 
             {/* DYNAMIC CONTENT */}
             {config.map((element: any) => renderElement(element))}
-
-            {/* STATIC FOOTER FROM TEMPLATE */}
-            <div className="mt-[25px] text-center text-[13px] font-[900] uppercase leading-[1.4]">
-              *** TERIMA KASIH ***<br />
-              HARAP SIMPAN STRUK INI SEBAGAI<br />
-              BUKTI PEMBAYARAN YANG SAH
-            </div>
           </div>
         </div>
 
@@ -270,20 +337,20 @@ const PreviewModal: FC<PreviewModalProps> = ({
         <div className="w-full md:w-[350px] p-8 flex flex-col justify-between bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
           <div className="space-y-6">
             <div className="flex justify-between items-start">
-              <div>
+              <div className="hidden md:block">
                 <h4 className="font-black text-slate-800 dark:text-white uppercase text-sm tracking-tighter">Opsi Penyimpanan</h4>
-                <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold">Siap cetak ke printer bluetooth</p>
+                <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold">Pilih metode penyimpanan struk</p>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition">
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-xl transition">
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 gap-x-3 flex flex-row md:flex-col">
               <ActionButton 
                 onClick={handleDownloadPDF} 
                 loading={isGenerating} 
-                icon={<Download size={20}/>} 
+                icon={<FileText/>} 
                 title="Simpan PDF" 
                 desc="Kualitas standar thermal"
                 color="blue"
@@ -291,7 +358,7 @@ const PreviewModal: FC<PreviewModalProps> = ({
               <ActionButton 
                 onClick={handleDownloadImage} 
                 loading={isGenerating} 
-                icon={<LucideImage size={20}/>} 
+                icon={<LucideImage/>} 
                 title="Simpan Gambar" 
                 desc="Format PNG Contrast Tinggi"
                 color="purple"
@@ -299,23 +366,20 @@ const PreviewModal: FC<PreviewModalProps> = ({
               <ActionButton 
                 onClick={handlePrintFisik} 
                 loading={isGenerating} 
-                disabled={!printerDevice || isGenerating}
-                icon={printerDevice ? <Printer size={20}/> : <BluetoothOff size={20}/>} 
+                icon={printerDevice ? <Printer/> : <BluetoothOff/>} 
                 title="Cetak Langsung" 
                 desc={printerDevice ? "Kirim ke Printer Thermal" : "Printer belum terhubung"}
                 color={printerDevice ? "green" : "gray"}
               />
             </div>
           </div>
-          
-          <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
-             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">System Thermal V2.5</span>
-          </div>
         </div>
       </div>
     </div>
   );
 };
+
+type CustomFontWeight = keyof typeof weightConstanta;
 
 interface ActionButtonProps {
   onClick: () => void;
@@ -327,27 +391,33 @@ interface ActionButtonProps {
   disabled?: boolean;
 }
 
-// Sub-component untuk tombol aksi
 const ActionButton: FC<ActionButtonProps> = ({ onClick, loading, icon, title, desc, color, disabled }) => {
   const themes = {
     blue: "bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white dark:bg-blue-900/20 dark:text-blue-400",
     purple: "bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white dark:bg-purple-900/20 dark:text-purple-400",
     green: "bg-green-50 text-green-700 hover:bg-green-600 hover:text-white dark:bg-green-900/20 dark:text-green-400",
-    gray: "bg-gray-50 text-gray-700 hover:bg-gray-600 hover:text-white dark:bg-gray-900/20 dark:text-gray-400"
+    gray: "bg-gray-50 text-gray-700 hover:bg-gray-600 hover:text-white dark:bg-gray-800/20 dark:text-gray-400"
   };
 
   return (
     <button 
       onClick={onClick}
       disabled={disabled || loading}
-      className={`flex items-center gap-4 p-5 rounded-3xl transition-all duration-300 text-left w-full disabled:opacity-50 group ${themes[color]}`}
+      className={`flex justify-center md:justify-start items-center gap-4 p-5 h-20 rounded-3xl transition-all duration-300 text-left w-full disabled:opacity-50 group overflow-hidden ${themes[color]}`}
     >
-      <div className="p-3 bg-white/50 dark:bg-black/20 rounded-xl group-hover:scale-110 transition-transform">
-        {loading ? <Loader2 className="animate-spin" size={20}/> : icon}
+      <div className="w-11 h-11 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded-xl group-hover:scale-110 transition-transform flex-shrink-0">
+        {loading ? (
+          <Loader2 className="animate-spin" size={20}/>
+        ) : (
+          <div className="flex items-center justify-center [&_svg]:!w-5 [&_svg]:!h-5">
+            {icon}
+          </div>
+        )}
       </div>
-      <div>
-        <div className="text-xs font-black uppercase tracking-tight">{title}</div>
-        <div className="text-[10px] opacity-70 font-bold">{desc}</div>
+      
+      <div className='hidden md:flex flex-col justify-center min-w-0'>
+        <div className="text-xs font-black uppercase tracking-tight truncate">{title}</div>
+        <div className="text-[10px] opacity-70 font-bold truncate">{desc}</div>
       </div>
     </button>
   );

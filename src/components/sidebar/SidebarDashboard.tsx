@@ -1,18 +1,18 @@
 'use client';
-import { usePathname } from 'next/navigation'; // Tambahkan ini
+import { usePathname } from 'next/navigation';
 import { LayersPlus, LayoutDashboard, LogOut, Settings, Timer, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface SidebarItemProps {
   icon: React.ReactNode;
   label: string;
-  active: boolean; // Tetap gunakan prop active
+  active: boolean;
   isOpen: boolean;
   href: string;
 }
 
 const SidebarDashboard = ({isSidebarOpen, setIsSidebarOpen, handleLogout}: { isSidebarOpen: boolean; setIsSidebarOpen: (open: boolean) => void; handleLogout: () => Promise<void> }) => {
-  const pathname = usePathname(); // Ambil path yang aktif saat ini
+  const pathname = usePathname();
 
   return (
     <aside 
@@ -36,32 +36,36 @@ const SidebarDashboard = ({isSidebarOpen, setIsSidebarOpen, handleLogout}: { isS
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto overflow-x-hidden">
-          {/* Logika Active: Cek apakah pathname sama dengan href */}
+          {/* Dashboard: Aktif jika pathnya tepat /dashboard atau sub-route khusus upload/manual */}
           <SidebarItem 
               icon={<LayoutDashboard size={20} />} 
               label="Dashboard" 
-              active={['/dashboard', '/dashboard/upload_struk', '/dashboard/struk_manual'].includes(pathname)} 
+              active={pathname === '/dashboard' || pathname.startsWith('/dashboard/upload_struk') || pathname.startsWith('/dashboard/struk_manual')} 
               isOpen={isSidebarOpen} 
               href="/dashboard"
           />
+          
+          {/* Layout Struk: Sekarang menggunakan .startsWith agar sub-route /create atau /edit tetap aktif */}
           <SidebarItem 
               icon={<LayersPlus size={20} />} 
               label="Layout Struk" 
-              active={['/dashboard/layout_list'].includes(pathname)} 
+              active={pathname.startsWith('/dashboard/layout_list')} 
               isOpen={isSidebarOpen} 
               href="/dashboard/layout_list"
           />
+          
           <SidebarItem 
               icon={<Settings size={20} />} 
               label="Settings" 
-              active={['/dashboard/settings'].includes(pathname)} 
+              active={pathname.startsWith('/dashboard/settings')} 
               isOpen={isSidebarOpen}
               href="/dashboard/settings"
           />
+          
           <SidebarItem 
               icon={<Timer size={20} />} 
               label="History" 
-              active={['/dashboard/history'].includes(pathname)} 
+              active={pathname.startsWith('/dashboard/history')} 
               isOpen={isSidebarOpen}
               href="/dashboard/history"
           />
@@ -94,7 +98,6 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active, isOpen, 
       {label}
     </span>
     
-    {/* Dekorasi tambahan untuk efek aktif (opsional) */}
     {active && (
       <div className="absolute left-0 w-1 h-6 bg-white rounded-r-full" />
     )}

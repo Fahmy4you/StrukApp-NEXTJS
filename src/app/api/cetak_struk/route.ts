@@ -6,10 +6,10 @@ import path from 'path';
 import { formatIDR } from '@/lib/Helpers';
 import { DefaultConfigLayout } from '@/lib/constanta';
 import { auth } from '@/auth';
+import { trackUserPrintActivity } from '@/models/UserStatistic';
+import { fontConfig, weightConstanta } from '@/lib/constanta';
 
 const normalizeKey = (label?: string) => label ? label.toLowerCase().trim().replace(/\s+/g, '_') : '';
-
-// Daftarkan helper jika belum ada
 if (!Handlebars.helpers.eq) {
     Handlebars.registerHelper('eq', (a, b) => a === b);
 }
@@ -25,8 +25,13 @@ export async function POST(req: Request) {
         
     try {
         const body = await req.json();
-        // Ambil 'downloadType' dari client (default ke pdf jika tidak ada)
         let { formData, config, format = 'pdf' } = body;
+
+        if(format == 'png') {
+            await trackUserPrintActivity('IMAGE');
+        } else {
+            await trackUserPrintActivity('PDF');
+        }
         
         const { protocol, host } = new URL(req.url);
         const baseUrl = `${protocol}//${host}`;
@@ -35,24 +40,53 @@ export async function POST(req: Request) {
             config = DefaultConfigLayout;
         }
 
-        // 1. Mapping Elemen Dinamis
+        // 1. Mapping Elemen Dinamis (Mendukung Margin, Gap, Pemisahan Spacing & Weight Terpisah)
         const mappedElements = config.map((el: any) => {
             const key = normalizeKey(el.label);
             
+            // Base spacing fallback untuk semua jenis tipe elemen
+            const baseSpacing = {
+                marginTop: el.marginTop !== undefined ? el.marginTop : 0,
+                marginBottom: el.marginBottom !== undefined ? el.marginBottom : 0,
+            };
+
             if (el.type === 'input_image') {
                 let logoSrc = formData.logo_image || formData.logo || el.value || "";
                 if (logoSrc && logoSrc.startsWith('/')) {
                     logoSrc = `${baseUrl}${logoSrc}`;
                 }
-                return { isLogo: true, src: logoSrc, width: el.width || 80, height: el.height || 80 };
+                return { 
+                    ...baseSpacing, 
+                    isLogo: true, 
+                    src: logoSrc, 
+                    width: el.width || 80, 
+                    height: el.height || 80 
+                };
             }
 
             if (el.type === 'text') {
-                return { isTitle: true, value: el.value, alignment: el.alignment || 'center', fontSize: el.fontSize || 14, fontWeight: el.fontWeight || 'bold', color: el.color || '#000', hasBorder: el.hasBorder };
+                return { 
+                    ...baseSpacing, 
+                    isTitle: true, 
+                    value: el.value, 
+                    alignment: el.alignment || 'center', 
+                    fontSize: el.fontSize || 14, 
+                    fontWeight: weightConstanta[el.fontWeight as keyof typeof weightConstanta] || 400, 
+                    color: el.color || '#000', 
+                    hasBorder: el.hasBorder,
+                    letterSpacing: el.letterSpacing !== undefined ? el.letterSpacing : 0
+                };
             }
 
             if (el.type === 'separator') {
-                return { isSeparator: true, borderType: el.style === 'dash' ? 'dashed' : 'solid', color: el.color || '#000' };
+                return { 
+                    ...baseSpacing,
+                    isSeparator: true, 
+                    isDouble: String(el.style).includes('double'), 
+                    borderType: String(el.style).includes('dash') ? 'dashed' : 'solid', 
+                    color: el.color || '#000',
+                    thickness: el.thickness !== undefined ? el.thickness : 2 // Meneruskan data ketebalan garis dinamis
+                };
             }
 
             if (formData.showAdmin === false && el.dataType === 'Admin_Fee') {
@@ -68,17 +102,25 @@ export async function POST(req: Request) {
                 }
 
                 return {
+                    ...baseSpacing,
                     isInput: true,
                     label: el.label,
                     value: rawValue,
                     showLabel: el.showLabel,
-                    fontSize: el.fontSize || 12,
-                    fontWeight: el.fontWeight || 'normal',
-                    color: el.color || '#000',
+                    // Penyesuaian Pemisahan Font Weight Angka Murni untuk Label dan Value
+                    labelFontWeight: weightConstanta[el.labelFontWeight as keyof typeof weightConstanta] || 400,
+                    valueFontWeight: weightConstanta[el.valueFontWeight as keyof typeof weightConstanta] || 400,
+                    color: el.color || '#000', 
                     isStacked: el.labelLayout === 'stacked',
                     isCentered: el.position === 'center',
                     isTotal: el.dataType === 'total_keseluruhan',
-                    hasBorder: el.hasBorder
+                    hasBorder: el.hasBorder,
+                    gap: el.gap !== undefined ? el.gap : 12,
+                    // Penyesuaian Pemisahan Letter Spacing untuk Label dan Value
+                    labelLetterSpacing: el.labelLetterSpacing !== undefined ? el.labelLetterSpacing : 0,
+                    valueLetterSpacing: el.valueLetterSpacing !== undefined ? el.valueLetterSpacing : 0,
+                    labelFontSize: el.labelFontSize || el.fontSize || 12,
+                    valueFontSize: el.valueFontSize || el.fontSize || 12
                 };
             }
             return null;
@@ -88,7 +130,11 @@ export async function POST(req: Request) {
         const templatePath = path.join(process.cwd(), 'src', 'templates', 'struk_template.html');
         const templateSource = fs.readFileSync(templatePath, 'utf-8');
         const template = Handlebars.compile(templateSource);
-        const finalHtml = template({ elements: mappedElements });
+        
+        const finalHtml = template({ 
+            elements: mappedElements,
+            fontConfig: fontConfig
+        });
 
         // 3. Puppeteer Processing
         const browser = await puppeteer.launch({
@@ -98,12 +144,13 @@ export async function POST(req: Request) {
 
         const page = await browser.newPage();
         
-        // Atur viewport khusus untuk image agar resolusi tajam
         if (format == 'png') {
             await page.setViewport({ width: 375, height: 800, deviceScaleFactor: 2 });
         }
         
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+        await page.evaluateHandle('document.fonts.ready');
+
         const height = await page.evaluate(() => document.documentElement.offsetHeight);
 
         let buffer: Buffer;
@@ -111,7 +158,6 @@ export async function POST(req: Request) {
         let fileExtension: string;
 
         if (format == 'png') {
-            // --- GENERATE PNG ---
             const element = await page.$('.receipt'); 
             if (!element) throw new Error("Element .receipt tidak ditemukan");
 
@@ -123,7 +169,6 @@ export async function POST(req: Request) {
             contentType = "image/png";
             fileExtension = "png";
         } else {
-            // --- GENERATE PDF ---
             const pdf = await page.pdf({
                 printBackground: true,
                 width: '58mm',

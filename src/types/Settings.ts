@@ -8,6 +8,7 @@ export interface AdminRange {
 
 export interface SettingsData {
   shopName: string;
+  alamat: string | null;
   logo: string | null;
   adminFee: {
     type: 'fixed' | 'range' | 'multiplier';

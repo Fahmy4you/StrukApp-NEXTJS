@@ -1,17 +1,18 @@
-'use client';
-import React, { useState, useEffect } from 'react';
-import { 
-  Files, 
+"use client";
+import {
   FileText, 
   Image as ImageIcon, 
   Printer, 
   ArrowRight,
   PlusCircle,
-  UploadCloud
+  UploadCloud,
+  Layers
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { getGreeting } from '@/lib/Helpers';
+import React, { useEffect, useState } from 'react';
+import { getUserDashboardStats } from '@/lib/actions';
 
 // --- Interfaces ---
 type ColorTheme = 'blue' | 'purple' | 'emerald' | 'orange';
@@ -31,19 +32,31 @@ interface ActionCardProps {
   href: string;
 }
 
-const App: React.FC = () => {
-  // Menangani resize otomatis untuk responsivitas awal
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+const App = () => {
   const { data: session } = useSession();
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalLayout: 0,
+    totalPdf: 0,
+    totalGambar: 0,
+    totalPrint: 0,
+  });
+
+  async function fetchStats() {
+    try {
+      setLoading(true);
+      const data = await getUserDashboardStats({ filter: 'semua' });
+      setStats(data);
+    } catch (error) {
+      console.error("Gagal mengambil data statistik:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsSidebarOpen(window.innerWidth >= 1024);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    fetchStats();
+  }, [])
 
   return (
     <div>
@@ -59,29 +72,29 @@ const App: React.FC = () => {
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard 
-          title="Struk Dicetak" 
-          value="2,450" 
-          icon={<Files />} 
+          title="Layout Struk" 
+          value={stats.totalLayout.toLocaleString()} 
+          icon={<Layers />} 
           color="blue" 
         />
         
         <StatCard 
           title="Struk via PDF" 
-          value="1,120" 
+          value={stats.totalPdf.toLocaleString()} 
           icon={<FileText />} 
           color="purple" 
         />
         
         <StatCard 
           title="Struk via Gambar" 
-          value="845" 
+          value={stats.totalGambar.toLocaleString()} 
           icon={<ImageIcon />} 
           color="emerald" 
         />
         
         <StatCard 
           title="Struk via Print" 
-          value="485" 
+          value={stats.totalPrint.toLocaleString()} 
           icon={<Printer />} 
           color="orange" 
         />
@@ -108,9 +121,7 @@ const App: React.FC = () => {
   );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => {
-  // Mapping warna untuk menghindari masalah dynamic class di Tailwind JIT
-  // Menggunakan sintaks modern bg-color/opacity
+const StatCard = ({ title, value, icon, color }: StatCardProps) => {
   const themeClasses: Record<ColorTheme, string> = {
     blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/20',
     purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 dark:bg-purple-500/20',
@@ -133,7 +144,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => {
   );
 };
 
-const ActionCard: React.FC<ActionCardProps> = ({ title, description, icon, colorClass, href }) => (
+const ActionCard = ({ title, description, icon, colorClass, href }: ActionCardProps) => (
   <Link href={href} className="group relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-100 dark:border-slate-800 text-left transition-all hover:shadow-xl hover:border-transparent">
     {/* Efek Gradient saat Hover */}
     <div className={`absolute inset-0 bg-gradient-to-r ${colorClass} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />

@@ -37,7 +37,11 @@ export async function POST(req: Request) {
     Catatan khusus:
     - Untuk nominal/angka/currency, kembalikan hanya angka (number) atau string angka murni.
     - Jika data tidak ditemukan, isi dengan null.
-    - Status harus berisi "BERHASIL" atau "GAGAL".`;
+    - jika ada key Status harus berisi "BERHASIL" atau "GAGAL".
+    - Jika ada key no referensi atau id transaksi atau id no ref dan kata yang serupa ambil dari transaksi referensi, no ref, ref, id transaksi, id, atau kata serupa, jika memang tidak ditemukan maka isi random string 10 karakter.
+    - Untuk tanggal atau sejenisnya, kembalikan dalam format "DD MMM YYYY" (misal: "05 Jan 2024") di bulan ambil 3 huruf saja.
+    - Pastikan JSON valid tanpa teks tambahan, penjelasan, atau format lain.
+    `;
 
     console.log(prompt)
 

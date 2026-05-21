@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { AdminRange, SettingsData } from '@/types/Settings';
 import { AlertLine } from '@/components/alerts/AlertLine';
-import { upsertSettingsAction } from '@/lib/actions';
 import { usePrinter } from '@/context/PrinterContext';
+import { upsertSettingsAction } from '@/models/Settings';
 
 const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialData }) => {
   // --- States ---
@@ -22,12 +22,14 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   
   // Data State
   const [shopName, setShopName] = useState(initialData?.shopName || 'StrukApp Digital');
+  const [alamat, setAlamat] = useState(initialData?.alamat || null);
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logo || null);
   
   const [adminType, setAdminType] = useState(initialData?.adminFee?.type || 'fixed');
   const [fixedFee, setFixedFee] = useState(initialData?.adminFee?.fixedValue || 2500);
   const [ranges, setRanges] = useState<AdminRange[]>(initialData?.adminFee?.ranges || []);
   const [multiplier, setMultiplier] = useState(initialData?.adminFee?.multiplier || { step: 10000, fee: 2500 });
+  
   // Modal State untuk Input Range Baru
   const [newRange, setNewRange] = useState({ 
     min: '', 
@@ -42,7 +44,39 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   const [isSearching, setIsSearching] = useState(false);
   const { printerDevice, setPrinterDevice, isPrinterConnected, setIsPrinterConnected } = usePrinter();
 
-  // --- BLUETOOT ---
+  // --- LOGIKA AUTO RECONNECT SETELAH REFRESH ---
+  useEffect(() => {
+    const autoReconnectPrinter = async () => {
+      // Melakukan casting navigator ke any agar tidak error TS(2339)
+      const navBluetooth = (navigator as any).bluetooth;
+      
+      if (navBluetooth && navBluetooth.getDevices) {
+        try {
+          const devices = await navBluetooth.getDevices();
+          const lastPrinterName = localStorage.getItem('last_printer_name');
+          
+          const matchedDevice = devices.find((d: any) => d.name === lastPrinterName);
+          
+          if (matchedDevice && !matchedDevice.gatt.connected) {
+            setIsSearching(true);
+            await matchedDevice.gatt.connect();
+            setPrinterDevice(matchedDevice);
+            setIsPrinterConnected(true);
+          }
+        } catch (error) {
+          console.error("Gagal melakukan auto-reconnect printer:", error);
+        } finally {
+          setIsSearching(false);
+        }
+      }
+    };
+
+    if (!isPrinterConnected) {
+      autoReconnectPrinter();
+    }
+  }, [isPrinterConnected, setPrinterDevice, setIsPrinterConnected]);
+
+  // --- BLUETOOTH CONNECT ---
   const connectPrinter = async () => {
     setIsSearching(true);
     try {
@@ -65,6 +99,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
     if (printerDevice?.gatt?.connected) printerDevice.gatt.disconnect();
     setIsPrinterConnected(false);
     setPrinterDevice(null);
+    localStorage.removeItem('last_printer_name');
   };
 
   // --- Handlers ---
@@ -82,7 +117,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
     const maxVal = newRange.max !== '' ? Number(newRange.max) : null;
     const feeVal = Number(newRange.fee);
 
-    // 1. Validasi Dasar
     if (newRange.min === '' || newRange.fee === '') {
       setAlert({ message: "Min dan Fee wajib diisi", type: 'error' });
       return;
@@ -93,15 +127,11 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
       return;
     }
 
-    // 2. Validasi Tumpang Tindih (Overlapping)
     const isOverlapping = ranges.some(r => {
       const existingMin = r.min;
       const existingMax = r.max === null ? Infinity : r.max;
       const currentMin = minVal;
       const currentMax = maxVal === null ? Infinity : maxVal;
-
-      // Cek apakah ada irisan antara rentang lama dan baru
-      // Rumus: (MinA <= MaxB) dan (MaxA >= MinB)
       return currentMin <= existingMax && currentMax >= existingMin;
     });
 
@@ -113,7 +143,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
       return;
     }
 
-    // 3. Jika lolos validasi, tambahkan ke state
     const range: AdminRange = {
       id: Math.random().toString(36).substring(2, 9),
       min: minVal,
@@ -124,7 +153,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
     setRanges((prev) => [...prev, range].sort((a, b) => a.min - b.min));
     setNewRange({ min: '', max: '', fee: '' });
     setShowModal(false);
-    setAlert(null); // Bersihkan error jika berhasil
+    setAlert(null);
   };
 
   const removeRange = (id: string) => {
@@ -136,7 +165,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
     let finalLogoPath = logoPreview;
 
     try {
-      // 1. Logika Upload Image (Hanya jika user ganti gambar/base64 baru)
       if (logoPreview && logoPreview.startsWith("data:")) {
         const uploadRes = await fetch("/api/upload_image", {
           method: "POST",
@@ -153,12 +181,12 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
         }
 
         const uploadData = await uploadRes.json();
-        finalLogoPath = uploadData.path; // Mendapatkan path baru: /image/upload/logo/xxx.png
+        finalLogoPath = uploadData.path;
       }
 
-      // 2. Susun Object JSON lengkap
       const finalJson: SettingsData = {
         shopName,
+        alamat,
         logo: finalLogoPath,
         adminFee: {
           type: adminType,
@@ -172,8 +200,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
         }
       };
 
-      // 3. Panggil Server Action untuk Simpan ke Database
-      // finalJson akan masuk ke kolom 'data' yang bertipe Json di tabel Settings
       const result = await upsertSettingsAction({ data: finalJson });
 
       if (result.success) {
@@ -181,8 +207,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
           message: "Pengaturan berhasil disimpan dan file lama telah dibersihkan!", 
           type: 'success' 
         });
-        
-        // Update logoPreview dengan path asli dari server agar tidak dianggap base64 lagi
         setLogoPreview(finalLogoPath); 
       } else {
         throw new Error(result.error);
@@ -224,7 +248,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* KOLOM KIRI: Identitas & Biaya */}
+        {/* KOLOM KIRI */}
         <div className="lg:col-span-2 space-y-8">
           
           {/* IDENTITAS TOKO */}
@@ -243,17 +267,25 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Alamat Toko</label>
+                <input 
+                  type="text" 
+                  value={alamat ?? ''}
+                  onChange={(e) => setAlamat(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
+                />
+              </div>
             </div>
           </section>
 
-          {/* KONFIGURASI BIAYA ADMIN */}
+          {/* SKEMA BIAYA ADMIN */}
           <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
               <Calculator className="text-emerald-500" size={20} />
               <h2 className="font-bold text-slate-800 dark:text-slate-200">Skema Biaya Admin</h2>
             </div>
 
-            {/* Selector Tipe Admin */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
               {[
                 { id: 'fixed', label: 'Tetap', icon: Target, desc: 'Biaya flat' },
@@ -278,10 +310,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
               ))}
             </div>
 
-            {/* Dynamic Input based on Type */}
             <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
-              
-              {/* FIXED */}
               {adminType === 'fixed' && (
                 <div className="space-y-2 max-w-sm">
                   <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Nominal Admin Tetap</label>
@@ -297,7 +326,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                 </div>
               )}
 
-              {/* RANGE (TANGGA) */}
               {adminType === 'range' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -339,7 +367,6 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                 </div>
               )}
 
-              {/* MULTIPLIER (KELIPATAN) */}
               {adminType === 'multiplier' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -421,7 +448,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
           </section>
         </div>
 
-        {/* KOLOM KANAN: LOGO PREVIEW */}
+        {/* KOLOM KANAN */}
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm top-6">
             <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-6">Logo Perusahaan</label>
@@ -456,6 +483,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
               </div>
             </div>
           </div>
+          
           <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
               <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
                 <Printer className="text-blue-600" size={20} />
@@ -475,7 +503,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                   ) : (
                     <div className="text-center text-slate-400 dark:text-slate-600">
                       <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        {printerDevice?.name ? <BluetoothOff size={32} /> : <Printer size={32} />}
+                        {isSearching ? <RefreshCw className="animate-spin text-blue-500" size={32} /> : (printerDevice?.name ? <BluetoothOff size={32} /> : <Printer size={32} />)}
                       </div>
                       <p className="font-bold text-slate-500 dark:text-slate-400">{printerDevice?.name || 'Belum Ada Printer'}</p>
                       <p className="text-[10px] uppercase mt-1">Status: Offline</p>
@@ -486,7 +514,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
                 <button
                   onClick={isPrinterConnected ? disconnectPrinter : connectPrinter}
                   disabled={isSearching}
-                  className={`w-full py-3.5 rounded-xl font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  className={`w-full py-3.5 rounded-xl font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer ${
                     isPrinterConnected 
                       ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40'
                       : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700'

@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
-import { DEFAULT_SETTINGS_FIRST_LOGIN } from "@/lib/constanta"
+import { DEFAULT_SETTINGS_FIRST_LOGIN, DefaultEwalletLayout, DefaultListrikLayout } from "@/lib/constanta"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -59,9 +59,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             data: DEFAULT_SETTINGS_FIRST_LOGIN 
           }
         });
-        console.log(`Settings otomatis dibuat untuk user: ${user.id}`);
+
+        await prisma.layout.createMany({
+          data: [
+            {
+              name: "Layout E-Wallet Default",
+              userId: user.id,
+              isDefault: true,
+              config: DefaultEwalletLayout as any
+            },
+            {
+              name: "Layout Token Listrik Default",
+              userId: user.id,
+              isDefault: false,
+              config: DefaultListrikLayout as any
+            }
+          ]
+        });
+        console.log(`Settings dan Layout otomatis dibuat untuk user: ${user.id}`);
       } catch (error) {
-        console.error("Gagal membuat settings default:", error);
+        console.error("Gagal membuat settings dan Layout default:", error);
       }
     }
   }

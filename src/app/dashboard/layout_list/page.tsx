@@ -7,7 +7,6 @@ import {
   Calendar, 
   Clock, 
   MoreVertical, 
-  Eye, 
   Edit3, 
   Plus,
   Search,
@@ -16,15 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
-
-// --- Interfaces ---
-interface LayoutItem {
-  id: string;
-  name: string;
-  createdAt: string; // format: YYYY-MM-DD
-  timeAt: string;    // format: HH:mm
-}
+import { deleteLayout, getAllLayouts } from '@/models/Layout';
+import { Layout } from '@prisma/client';
+import { formatDateIndo } from '@/lib/Helpers';
 
 interface Filters {
   date: string;
@@ -38,9 +33,12 @@ const App: React.FC = () => {
   // --- State ---
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [layoutData, setLayoutData] = useState<Layout[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1); // FIX: Tambahkan state currentPage yang sempat hilang
+  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  // State filter (Tunggal)
+  // State filter 
   const [tempFilters, setTempFilters] = useState<Filters>({
     date: '',
     time: ''
@@ -51,33 +49,46 @@ const App: React.FC = () => {
     time: ''
   });
 
-  // Data dummy
-  const [layoutData] = useState<LayoutItem[]>([
-    { id: '1', name: 'Struk Belanja Minimarket Cabang A', createdAt: '2026-05-04', timeAt: '22:15' },
-    { id: '2', name: 'Layout Token Listrik PLN Pasca Bayar', createdAt: '2026-05-03', timeAt: '14:20' },
-    { id: '3', name: 'Tagihan Air PDAM Tirta Kencana', createdAt: '2026-05-01', timeAt: '09:10' },
-    { id: '4', name: 'Restoran Cepat Saji Burger King', createdAt: '2026-04-28', timeAt: '19:45' },
-    { id: '5', name: 'Parkir Mall Metropolitan Bekasi', createdAt: '2026-04-25', timeAt: '11:00' },
-    { id: '6', name: 'Invoice Jasa Pembersihan AC Rumah', createdAt: '2026-04-20', timeAt: '08:30' },
-    { id: '7', name: 'Struk Coffee Shop Senja', createdAt: '2026-04-18', timeAt: '16:00' },
-    { id: '8', name: 'Kwitansi Pembelian Gadget Store', createdAt: '2026-04-15', timeAt: '13:45' },
-    { id: '9', name: 'Tiket Bioskop XXI Cinema', createdAt: '2026-04-12', timeAt: '20:00' },
-    { id: '10', name: 'Laundry Kiloan Bersih Wangi', createdAt: '2026-04-10', timeAt: '10:15' },
-  ]);
+  // --- Integrasi Fungsi Fetch ---
+  const fetchLayout = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getAllLayouts();
+      setLayoutData(data);
+    } catch (error) {
+      setAlert({
+        type: 'error',
+        message: 'Gagal mengambil data layout, silakan reload halaman'
+      });
+      console.error("Gagal mengambil data layout: ", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Memanggil fungsi fetchLayout saat halaman pertama kali dibuka
+  useEffect(() => {
+    fetchLayout();
+  }, []);
 
   // --- Logika Filtering ---
   const filteredData = useMemo(() => {
     return layoutData.filter(item => {
-      // Pencarian nama
+      // Pencarian nama layout
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
       
-      // Filter tanggal (pencocokan tepat)
+      // Filter tanggal dari Prisma (Konversi Date object atau string untuk dicocokkan)
       let matchesDate = true;
-      if (activeFilters.date) matchesDate = item.createdAt === activeFilters.date;
+      if (activeFilters.date) {
+        const itemDate = new Date(item.createdAt).toISOString().split('T')[0];
+        matchesDate = itemDate === activeFilters.date;
+      }
       
-      // Filter waktu (pencocokan tepat)
+      // Filter waktu (Jika struktur DB menyimpan data jam)
       let matchesTime = true;
-      if (activeFilters.time) matchesTime = item.timeAt === activeFilters.time;
+      // if (activeFilters.time && (item as any).timeAt) {
+      //   matchesTime = (item as any).timeAt === activeFilters.time;
+      // }
       
       return matchesSearch && matchesDate && matchesTime;
     });
@@ -108,9 +119,35 @@ const App: React.FC = () => {
 
   const isAnyFilterActive = Boolean(activeFilters.date || activeFilters.time);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus layout ? riwayat berhubungan akan dihapus !")) return;
+
+    try {
+      const result = await deleteLayout(id);
+      if (result.success) {
+        // Update state secara lokal agar UI langsung berubah
+        setLayoutData((prev) => prev.filter((item) => item.id !== id));
+        setAlert({
+          type: 'success',
+          message: 'Berhasil Menghapus Layout'
+        });
+      } else {
+        setAlert({
+          type: 'error',
+          message: 'Gagal Menghapus Layout'
+        });
+      }
+    } catch (error) {
+      setAlert({
+        type: 'error',
+        message: 'Terjadi kesalahan sistem saat menghapus data.'
+      });
+    }
+  };
+
   return (
     <div>
-        
+
         {/* Header Section */}
         <header className="flex flex-col min-[1200px]:flex-row min-[1200px]:items-end justify-between gap-6 mb-8">
           <div className="space-y-1">
@@ -177,14 +214,75 @@ const App: React.FC = () => {
             </button>
           </div>
         )}
+        
+        {alert && (
+          <div className={`mb-4 p-4 rounded-xl text-sm font-bold border ${alert.type === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'}`}>
+            {alert.message}
+          </div>
+        )}
 
-        {/* Grid Layout List */}
-        {paginatedData.length > 0 ? (
-          <div className="grid grid-cols-1 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3 2xl:grid-cols-3 gap-6">
-            {paginatedData.map((layout) => (
-              <LayoutCard key={layout.id} layout={layout} />
+        {/* State Loading */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-white dark:bg-slate-900 h-48 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 space-y-4">
+                <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+              </div>
             ))}
           </div>
+        ) : paginatedData.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3 gap-6">
+              {paginatedData.map((layout) => (
+                <LayoutCard onDelete={() => handleDelete(layout.id)} key={layout.id} layout={layout} />
+              ))}
+            </div>
+
+            {/* Pagination Controls Rendered */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 py-6 border-t border-slate-200 dark:border-slate-800">
+                <p className="text-sm text-slate-500 dark:text-slate-400 order-2 sm:order-1 text-center sm:text-left">
+                  Menampilkan <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> sampai <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)}</span> dari <span className="font-bold text-slate-900 dark:text-white">{filteredData.length}</span> layout
+                </p>
+                
+                <div className="flex items-center gap-2 order-1 sm:order-2">
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1.5 px-1">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-10 h-10 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                          currentPage === i + 1 
+                          ? 'bg-blue-600 text-white shadow-blue-600/20' 
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 transition-colors shadow-sm">
             <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-full mb-4">
@@ -203,50 +301,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 py-6 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400 order-2 sm:order-1 text-center sm:text-left">
-              Menampilkan <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> sampai <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)}</span> dari <span className="font-bold text-slate-900 dark:text-white">{filteredData.length}</span> layout
-            </p>
-            
-            <div className="flex items-center gap-2 order-1 sm:order-2">
-              <button 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              
-              <div className="flex items-center gap-1.5 overflow-x-auto px-1 no-scrollbar max-w-[200px] sm:max-w-none">
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`flex-shrink-0 w-10 h-10 rounded-lg text-sm font-bold transition-all shadow-sm ${
-                      currentPage === i + 1 
-                      ? 'bg-blue-600 text-white shadow-blue-600/20' 
-                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-
-              <button 
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-        )}
-
-      {/* --- Filter Modal (TypeScript + Responsive Fix) --- */}
+      {/* --- Filter Modal --- */}
       {isFilterModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/40 backdrop-blur-sm transition-all">
           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in duration-300 flex flex-col max-h-[85vh]">
@@ -322,60 +377,93 @@ const App: React.FC = () => {
 
 // --- Subcomponent: LayoutCard ---
 interface LayoutCardProps {
-  layout: LayoutItem;
+  layout: Layout;
+  onDelete: () => Promise<void>;
 }
 
-const LayoutCard: React.FC<LayoutCardProps> = ({ layout }) => {
-  const formatDate = (dateStr: string) => {
-    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-    return new Date(dateStr).toLocaleDateString('id-ID', options);
-  };
+const LayoutCard: React.FC<LayoutCardProps> = ({ layout, onDelete }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const truncatedTitle = layout.name.length > 35
     ? layout.name.substring(0, 35) + "..." 
     : layout.name;
 
+  // Mencari tahu jumlah elemen/komponen dari properti config (Prisma Json/Array)
+  const totalElements = Array.isArray(layout.config) 
+    ? layout.config.length 
+    : typeof layout.config === 'string' 
+      ? JSON.parse(layout.config || '[]').length 
+      : 0;
+
+  const onClickDelete = async () => {
+    setIsDeleting(true);
+    await onDelete();
+    setIsDeleting(false);
+  }
+
   return (
     <div className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 relative overflow-hidden flex flex-col h-full shadow-sm">
+      {/* Decorative Blob */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 transition-all group-hover:scale-150 duration-500" />
       
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex justify-between items-start mb-4">
-          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
-            <FileText size={24} />
+        {/* TOP SECTION: Icon, Status Badge, and More Button */}
+        <div className="flex justify-between items-center mb-4 gap-2">
+          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm flex-shrink-0">
+            <FileText size={22} />
           </div>
-          <button className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-            <MoreVertical size={18} />
-          </button>
+          
+          <div className="flex items-center gap-1 min-w-0">
+            {/* BADGE BARU: Menampilkan status aktif jika layout di-set default */}
+            {layout.isDefault && (
+              <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase rounded-md tracking-wider flex-shrink-0">
+                Utama
+              </span>
+            )}
+            <button className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0">
+              <MoreVertical size={18} />
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-1 mb-6 flex-grow">
+        {/* MIDDLE SECTION: Title & Component Summary */}
+        <div className="space-y-2 mb-4 flex-grow min-w-0">
           <h3 
-            className="font-bold text-slate-900 dark:text-white text-base md:text-lg leading-snug line-clamp-2 min-h-[3rem] md:min-h-[3.5rem]" 
-            title={truncatedTitle}
+            className="font-bold text-slate-900 dark:text-white text-base md:text-lg leading-snug line-clamp-2 min-h-[2.5rem] md:min-h-[3rem]" 
+            title={layout.name}
           >
             {truncatedTitle}
           </h3>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[10px] md:text-xs">
-              <Calendar size={14} className="text-blue-500" />
-              {formatDate(layout.createdAt)}
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[10px] md:text-xs">
-              <Clock size={14} className="text-emerald-500" />
-              {layout.timeAt} WIB
-            </div>
+          
+          {/* INFORMASI BARU: Summary data komponen di dalam JSON config */}
+          <div className="bg-slate-50/70 dark:bg-slate-800/20 rounded-xl p-2.5 border border-slate-100/50 dark:border-slate-800/50">
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Struktur: <span className="text-blue-600 dark:text-blue-400 font-bold">{totalElements} Elemen Susunan</span>
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-auto pt-2">
-          <button className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] md:text-xs font-bold hover:bg-blue-600 hover:text-white transition-all duration-200 shadow-sm">
-            <Edit3 size={16} />
+        {/* METADATA BARU: Separator Border & Tanggal Pembuatan */}
+        <div className="pt-3 mb-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[10px] md:text-xs min-w-0">
+            <Calendar size={13} className="text-blue-500 flex-shrink-0" />
+            <span className="truncate">{formatDateIndo(layout.createdAt)}</span>
+          </div>
+          
+          <div className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">
+            ID: #{layout.id.slice(-5)}
+          </div>
+        </div>
+
+        {/* ACTION BUTTONS */}
+        <div className="grid grid-cols-2 gap-2.5 mt-auto">
+          <Link href={`/dashboard/layout_list/${layout.id}`} className="flex cursor-pointer items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] md:text-xs font-bold hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all duration-200 shadow-sm group/btn">
+            <Edit3 size={14} className="text-slate-400 group-hover/btn:text-white transition-colors" />
             <span>Edit</span>
-          </button>
-          <button className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] md:text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all duration-200 shadow-sm">
-            <Eye size={16} />
-            <span>Preview</span>
+          </Link>
+          <button onClick={onClickDelete} className="flex cursor-pointer items-center justify-center gap-1.5 py-2 px-3 bg-red-400 dark:bg-red-800 text-slate-200 dark:text-slate-300 rounded-xl text-[11px] md:text-xs font-bold hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition-all duration-200 shadow-sm group/btn">
+            <Trash2 size={14} className="text-slate-200 group-hover/btn:text-white transition-colors" />
+            <span>Hapus</span>
           </button>
         </div>
       </div>

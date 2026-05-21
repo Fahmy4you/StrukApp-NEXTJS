@@ -1,7 +1,7 @@
 'use client';
-import { Bell, ChevronDown, ChevronLeft, LogOut, Mail, Menu, Settings2, UserCircle } from "lucide-react";
+import { ChevronDown, ChevronLeft, LogOut, Menu, Settings2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface ProfileMenuItemProps {
@@ -23,6 +23,7 @@ const NavbarDashboard = ({ isSidebarOpen, setIsSidebarOpen, handleLogout }: { is
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const { data: session } = useSession();
+  const router = useRouter();
 
   const getPageTitle = (path: string) => {
         // Objek pemetaan untuk path yang spesifik
@@ -73,13 +74,13 @@ const NavbarDashboard = ({ isSidebarOpen, setIsSidebarOpen, handleLogout }: { is
             </button> */}
 
             <div className="relative">
-            <button 
+            {/* <button 
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className="p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all relative"
             >
                 <Bell size={20} />
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-            </button>
+            </button> */}
             {isNotificationsOpen && (
                 <div className="absolute top-full right-0 mt-4 w-72 md:w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl py-4 z-50">
                 <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
@@ -98,7 +99,7 @@ const NavbarDashboard = ({ isSidebarOpen, setIsSidebarOpen, handleLogout }: { is
             <div className="relative">
             <button 
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-2 p-1 md:p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-slate-200 dark:border-slate-700"
+                className="flex cursor-pointer items-center gap-2 p-1 md:p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-slate-200 dark:border-slate-700"
             >
                 <img 
                 src={session?.user?.image || "https://via.placeholder.com/150"} 
@@ -119,9 +120,9 @@ const NavbarDashboard = ({ isSidebarOpen, setIsSidebarOpen, handleLogout }: { is
                     <p className="font-bold text-sm">{session?.user?.name}</p>
                     <p className="text-xs text-slate-500 truncate">{session?.user?.email}</p>
                 </div>
-                <ProfileMenuItem icon={<UserCircle size={18}/>} label="Edit Profile" />
-                <ProfileMenuItem icon={<Settings2 size={18}/>} label="Settings" />
-                <ProfileMenuItem icon={<Mail size={18}/>} label="Messages" badge="3" />
+                {/* <ProfileMenuItem icon={<UserCircle size={18}/>} label="Edit Profile" /> */}
+                <ProfileMenuItem onClick={() => router.push('/settings')} icon={<Settings2 size={18}/>} label="Settings" />
+                {/* <ProfileMenuItem icon={<Mail size={18}/>} label="Messages" badge="3" /> */}
                 <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                     <ProfileMenuItem onClick={handleLogout} icon={<LogOut size={18}/>} label="Sign Out" danger />
                 </div>

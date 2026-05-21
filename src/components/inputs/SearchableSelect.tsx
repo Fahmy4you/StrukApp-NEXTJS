@@ -1,39 +1,39 @@
-import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
-import { Landmark, Check, ChevronDown, Search, X, LucideIcon } from 'lucide-react';
+'use client';
 
-interface SearchableSelectProps {
-  options: string[];
-  label?: string;
-  placeholder?: string;
-  name?: string;
-  icon?: LucideIcon;
-  onChange?: (e: { target: { name: string; value: string } }) => void;
-  value?: string;
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Search, ChevronDown, Check, Loader2 } from "lucide-react";
+
+// Definisikan struktur data generic agar bisa dipakai untuk data apapun
+interface SelectOption {
+  id: string;
+  label: string;
 }
 
-const SearchableSelect: React.FC<SearchableSelectProps> = ({ 
-  options = [], 
-  label = "Pilih", 
-  placeholder = "Cari...", 
-  name = "select_field", 
-  icon: Icon = Landmark, 
-  onChange,
-  value = ""
+interface SearchableSelectProps {
+  labelTitle?: string;
+  placeholder?: string;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  options: SelectOption[];
+  loading?: boolean;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  labelTitle = "Pilih Opsi",
+  placeholder = "Ketik untuk mencari...",
+  selectedId,
+  onSelect,
+  options,
+  loading = false,
 }) => {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedValue, setSelectedValue] = useState<string>(value);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Update status internal jika prop value berubah
-  useEffect(() => {
-    setSelectedValue(value);
-  }, [value]);
-
-  // Menutup dropdown jika klik di luar komponen
+  // Efek klik di luar komponen untuk otomatis menutup dropdown menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -41,114 +41,90 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter((item) =>
-    item.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter option berdasarkan karakter input pencarian (case-insensitive)
+  const filteredOptions = useMemo(() => {
+    return options.filter((opt) =>
+      opt.label.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [options, search]);
 
-  const handleSelect = (item: string) => {
-    setSelectedValue(item);
-    setSearchTerm("");
-    setIsOpen(false);
-    
-    if (onChange) {
-      onChange({
-        target: {
-          name: name,
-          value: item
-        }
-      });
-    }
-  };
-
-  const clearSelection = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedValue("");
-    if (onChange) {
-      onChange({ target: { name: name, value: "" } });
-    }
-  };
+  // Cari objek item yang sedang aktif dipilih saat ini
+  const currentSelection = options.find((opt) => opt.id === selectedId);
 
   return (
-    <div className="space-y-2" ref={dropdownRef}>
-      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-        {Icon && <Icon size={14} className="text-blue-500" />} {label}
+    <div className="relative w-full min-w-0" ref={containerRef}>
+      {/* Label Atas */}
+      <label className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 dark:text-slate-500 tracking-wider block mb-1.5">
+        {labelTitle}
       </label>
 
-      <div className="relative">
-        {/* Trigger / Paparan Input */}
-        <div
-          onClick={() => setIsOpen(!isOpen)}
-          className={`
-            w-full p-4 flex items-center justify-between cursor-pointer
-            bg-gray-50 dark:bg-slate-800 border rounded-2xl transition-all duration-200
-            ${isOpen ? 'border-blue-600 ring-2 ring-blue-600/20' : 'border-gray-200 dark:border-slate-700'}
-          `}
-        >
-          <div className="flex items-center gap-3 overflow-hidden">
-            {!selectedValue && !isOpen && (
-              <span className="text-gray-400 truncate">{placeholder}</span>
-            )}
-            {selectedValue && !isOpen && (
-              <span className="font-medium text-gray-900 dark:text-white truncate">{selectedValue}</span>
-            )}
-            {isOpen && (
-              <input
-                autoFocus
-                type="text"
-                placeholder="Taip untuk mencari..."
-                className="bg-transparent outline-none w-full text-gray-900 dark:text-white"
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-          </div>
+      {/* Main Selector Box (Trigger Open/Close) */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-blue-500 dark:hover:border-blue-600 transition-all shadow-sm select-none"
+      >
+        <span className={`text-xs sm:text-sm truncate flex-1 ${currentSelection ? "text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-400 dark:text-slate-500"}`}>
+          {currentSelection ? currentSelection.label : placeholder}
+        </span>
+        <ChevronDown 
+          size={16} 
+          className={`text-slate-400 dark:text-slate-500 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-blue-500" : ""}`} 
+        />
+      </div>
 
-          <div className="flex items-center gap-2 ml-2">
-            {selectedValue && (
-              <X 
-                size={16} 
-                className="text-gray-400 hover:text-red-500 transition-colors" 
-                onClick={clearSelection}
-              />
-            )}
-            <ChevronDown 
-              size={18} 
-              className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+      {/* Dropdown Card Flyout */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl dark:shadow-slate-950/50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 flex flex-col">
+          
+          {/* Search Box Sticky Input */}
+          <div className="relative p-2 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 flex-shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
+            <input
+              type="text"
+              placeholder="Cari..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()} // Menahan event bubling agar dropdown tidak tertutup saat diklik
+              className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs sm:text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-600 transition-all text-slate-800 dark:text-slate-200"
             />
           </div>
-        </div>
 
-        {/* Menu Dropdown */}
-        {isOpen && (
-          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl max-h-64 overflow-y-auto overflow-x-hidden animate-in fade-in zoom-in-95 duration-100 no-scrollbar">
-            {filteredOptions.length > 0 ? (
-              <div className="p-2">
-                {filteredOptions.map((item) => (
-                  <div
-                    key={item}
-                    onClick={() => handleSelect(item)}
-                    className={`
-                      flex items-center justify-between p-3 rounded-xl cursor-pointer transition
-                      ${selectedValue === item 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'}
-                    `}
-                  >
-                    <span className="font-medium">{item}</span>
-                    {selectedValue === item && <Check size={16} />}
-                  </div>
-                ))}
+          {/* List Box Options - MAXIMAL TAMPILKAN 3 ITEM SAJA (`max-h-[112px]` atau 3 baris item) */}
+          <div className="overflow-y-auto max-h-[120px] divide-y divide-slate-50 dark:divide-slate-800/40 custom-scrollbar">
+            {loading ? (
+              <div className="flex items-center justify-center py-4 text-slate-400 dark:text-slate-500 gap-2 text-xs">
+                <Loader2 size={14} className="animate-spin text-blue-500" />
+                Memuat data...
               </div>
+            ) : filteredOptions.length > 0 ? (
+              filteredOptions.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    onSelect(item.id);
+                    setIsOpen(false);
+                    setSearch("");
+                  }}
+                  className={`flex items-center justify-between gap-2 px-4 py-2 text-xs sm:text-sm cursor-pointer select-none transition-colors ${
+                    selectedId === item.id
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {selectedId === item.id && (
+                    <Check size={14} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                  )}
+                </div>
+              ))
             ) : (
-              <div className="p-8 text-center">
-                <Search size={24} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">Data tidak dijumpai</p>
+              <div className="px-4 py-4 text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
+                Data tidak ditemukan
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

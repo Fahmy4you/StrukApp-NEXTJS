@@ -79,7 +79,7 @@ model Receipt {
   total     Float?   
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)  
-  layout    Layout?  @relation(fields: [layoutId], references: [id])
+  layout    Layout?  @relation(fields: [layoutId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,4 +113,19 @@ model Settings {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+model UserStatistic {
+  id                String   @id @default(uuid())
+  userId            String
+  date              DateTime
+  
+  pdfCount          Int      @default(0)
+  imageCount        Int      @default(0)
+  directPrintCount  Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+
+  @@map("user_statistics")
 }
