@@ -148,7 +148,7 @@ export async function POST(req: Request) {
             await page.setViewport({ width: 375, height: 800, deviceScaleFactor: 2 });
         }
         
-        await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+        await page.setContent(finalHtml, { waitUntil: 'load' });
         await page.evaluateHandle('document.fonts.ready');
 
         const height = await page.evaluate(() => document.documentElement.offsetHeight);
