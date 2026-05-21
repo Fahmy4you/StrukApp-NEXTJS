@@ -137,23 +137,16 @@ export async function POST(req: Request) {
         });
 
         // 3. Puppeteer Processing
-        // const browser = await puppeteer.launch({
-        //     headless: true,
-        //     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-        // });
         const browser = await puppeteer.launch({
-            // 1. Jalankan mode headless (tanpa tampilan UI)
-            headless: true, 
-            
-            // 2. Tambahkan argumen wajib untuk server Linux ini
-            args: [
-                '--no-sandbox',                      // WAJIB: Mematikan sandbox Linux (karena jalankan sebagai root/www)
-                '--disable-setuid-sandbox',          // WAJIB: Tambahan pendukung no-sandbox
-                '--disable-dev-shm-usage',           // WAJIB: Memakai folder /tmp, bukan /dev/shm (biar gak crash kekurangan RAM)
-                '--disable-crash-reporter',          // Solusi error crashpad_handler kamu
-                '--disable-extensions',              // Mematikan ekstensi biar lebih ringan
-                '--no-zygote'                        // Mencegah Chrome membuat proses anak yang bikin crash di Linux
-            ]
+          headless: true,
+          executablePath: '/usr/bin/google-chrome',
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--no-zygote',
+            '--disable-gpu'
+          ]
         });
 
         const page = await browser.newPage();
@@ -197,6 +190,8 @@ export async function POST(req: Request) {
         await browser.close();
 
         return new Response(new Uint8Array(buffer), {
+            status: 200,
+            statusText: 'OK',
             headers: {
                 "Content-Type": contentType,
                 "Content-Disposition": `attachment; filename=struk-${Date.now()}.${fileExtension}`,
