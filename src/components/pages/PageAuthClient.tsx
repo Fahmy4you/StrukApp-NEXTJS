@@ -15,7 +15,7 @@ export default function PageAuthClient() {
       await signInWithGoogle();
     } catch (err) {
       console.error(err);
-      setAlert({ message: 'Gagal masuk dengan Google', type: 'error' });
+    //   setAlert({ message: 'Gagal masuk dengan Google', type: 'error' });
     } finally {
       setIsLoading(false);
     }

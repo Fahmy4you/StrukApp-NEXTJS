@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['struk.bydils.site', 'localhost:3000'],
+    },
+  },
 };
 
 export default nextConfig;
