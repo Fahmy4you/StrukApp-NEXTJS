@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ElementType, DataType, Alignment, LabelLayout } from '@/types/MainStruk';
 import { 
   Trash2, 
@@ -105,6 +105,16 @@ const PageLayoutSettings = ({name, config, idLayout}: {name?: string, config?: R
   const [rows, setRows] = useState<ReceiptElement[]>(config ?? DefaultConfigLayout);
   const [loading, setLoading] = useState(false);
   const topRef = React.useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+      if (alert && errorRef.current) {
+      errorRef.current.scrollIntoView({
+          behavior: "smooth", // Transisi scroll yang halus
+          block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+      });
+      }
+  }, [alert]);
 
   const addElement = (type: ElementType) => {
     const id = crypto.randomUUID();
@@ -311,7 +321,11 @@ const PageLayoutSettings = ({name, config, idLayout}: {name?: string, config?: R
           </div>
         </div>
 
-        {alert?.message && <AlertLine message={alert.message} type={alert.type} className='mb-3' />}
+        {alert?.message && (
+            <div ref={errorRef}>
+                <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+            </div>
+        )}
 
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-start">
           

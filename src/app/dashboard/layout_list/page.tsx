@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   FileText, 
@@ -20,6 +20,7 @@ import {
 import { deleteLayout, getAllLayouts } from '@/models/Layout';
 import { Layout } from '@prisma/client';
 import { formatDateIndo } from '@/lib/Helpers';
+import { AlertLine } from '@/components/alerts/AlertLine';
 
 interface Filters {
   date: string;
@@ -37,6 +38,7 @@ const App: React.FC = () => {
   const [layoutData, setLayoutData] = useState<Layout[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1); // FIX: Tambahkan state currentPage yang sempat hilang
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   
   // State filter 
   const [tempFilters, setTempFilters] = useState<Filters>({
@@ -70,6 +72,14 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchLayout();
   }, []);
+  useEffect(() => {
+        if (alert && errorRef.current) {
+        errorRef.current.scrollIntoView({
+            behavior: "smooth", // Transisi scroll yang halus
+            block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+        });
+        }
+    }, [alert]);
 
   // --- Logika Filtering ---
   const filteredData = useMemo(() => {
@@ -215,10 +225,10 @@ const App: React.FC = () => {
           </div>
         )}
         
-        {alert && (
-          <div className={`mb-4 p-4 rounded-xl text-sm font-bold border ${alert.type === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'}`}>
-            {alert.message}
-          </div>
+        {alert?.message && (
+            <div ref={errorRef}>
+                <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+            </div>
         )}
 
         {/* State Loading */}

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { 
   Store, Image as ImageIcon, Hash, Save, Upload, Info, Check, 
   AlertCircle, Plus, Trash2, Layers, Calculator, Target, X,
@@ -19,6 +19,7 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   
   // Data State
   const [shopName, setShopName] = useState(initialData?.shopName || 'StrukApp Digital');
@@ -43,6 +44,15 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   // Context Printer State
   const [isSearching, setIsSearching] = useState(false);
   const { printerDevice, setPrinterDevice, isPrinterConnected, setIsPrinterConnected } = usePrinter();
+
+  useEffect(() => {
+      if (alert && errorRef.current) {
+      errorRef.current.scrollIntoView({
+          behavior: "smooth", // Transisi scroll yang halus
+          block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+      });
+      }
+  }, [alert]);
 
   // --- LOGIKA AUTO RECONNECT SETELAH REFRESH ---
   useEffect(() => {
@@ -244,7 +254,11 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
         </button>
       </header>
 
-      {alert?.message && <AlertLine message={alert.message} type={alert.type} className='mb-3' />}
+      {alert?.message && (
+          <div ref={errorRef}>
+              <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+          </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         

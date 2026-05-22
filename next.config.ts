@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/',
-        destination: '/auth',
-        permanent: true, // Gunakan true agar SEO & Browser langsung mengingat redirect ini
+        destination: '/dashboard',
+        permanent: true,
       },
     ]
   },

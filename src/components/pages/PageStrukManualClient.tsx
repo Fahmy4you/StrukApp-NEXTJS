@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, ChangeEvent, FormEvent, useMemo } from 'react';
+import { useState, useEffect, ChangeEvent, FormEvent, useMemo, useRef } from 'react';
 import { 
   Smartphone, 
   Calendar, 
@@ -85,6 +85,7 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   
   // --- STATE CONFIG LAYOUT ---
   const [config, setConfig] = useState<ReceiptElement[]>(DefaultConfigLayout);
@@ -114,6 +115,14 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
     setIsMounted(true);
     rebuildFormSchema(DefaultConfigLayout);
   }, []);
+  useEffect(() => {
+      if (alert && errorRef.current) {
+      errorRef.current.scrollIntoView({
+          behavior: "smooth", // Transisi scroll yang halus
+          block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+      });
+      }
+  }, [alert]);
 
   // Fungsi pembersih sekaligus pembangun ulang struktur input schema form
   const rebuildFormSchema = (targetConfig: ReceiptElement[]) => {
@@ -252,7 +261,11 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
           </p>
       </header>
 
-      {alert?.message && <AlertLine message={alert.message} type={alert.type} className='mb-4' />}
+      {alert?.message && (
+          <div ref={errorRef}>
+              <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+          </div>
+      )}
 
       <form className="space-y-6" onSubmit={handleSubmit}>
         

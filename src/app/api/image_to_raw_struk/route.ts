@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai"; // Tambahkan Type untuk skema
 import { NextResponse } from "next/server";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -18,32 +18,52 @@ export async function POST(req: Request) {
     }
 
     const { imageBase64, mimeType, targetFields } = await req.json();
-    
     if (!imageBase64) return NextResponse.json({ error: "Gambar kosong" }, { status: 400 });
 
-    // 1. Bangun Skema JSON Dinamis berdasarkan targetFields dari Frontend
-    // targetFields berisi: [{ label: "NAMA", key: "nama", dataType: "String" }, ...]
-    const fieldStructure = targetFields.reduce((acc: any, field: any) => {
-      acc[field.key] = `Isi dengan data ${field.label} yang ditemukan di struk`;
-      return acc;
-    }, {});
+    // 1. Bangun properti objek dinamis untuk skema ekstraksi data
+    const propertiesSchema: Record<string, any> = {};
+    targetFields.forEach((field: any) => {
+      propertiesSchema[field.key] = {
+        type: Type.STRING,
+        description: `Nilai dari elemen ${field.label} yang tertera di struk. Jika benar-benar tidak ada di gambar, isi wajib dengan string "null".`,
+      };
+    });
 
-    // 2. Buat Prompt yang memerintahkan AI mengikuti struktur tersebut
-    const prompt = `Analisis struk ini dengan sangat teliti. 
-    Ekstrak informasi yang diminta dan kembalikan HANYA dalam format JSON murni.
-    Gunakan key berikut:
-    ${JSON.stringify(fieldStructure, null, 2)}
-    
-    Catatan khusus:
-    - Untuk nominal/angka/currency, kembalikan hanya angka (number) atau string angka murni.
-    - Jika data tidak ditemukan, isi dengan null.
-    - jika ada key Status harus berisi "BERHASIL" atau "GAGAL".
-    - Jika ada key no referensi atau id transaksi atau id no ref dan kata yang serupa ambil dari transaksi referensi, no ref, ref, id transaksi, id, atau kata serupa, jika memang tidak ditemukan maka isi random string 10 karakter.
-    - Untuk tanggal atau sejenisnya, kembalikan dalam format "DD MMM YYYY" (misal: "05 Jan 2024") di bulan ambil 3 huruf saja.
-    - Pastikan JSON valid tanpa teks tambahan, penjelasan, atau format lain.
-    `;
+    // 2. Tentukan Skema Output yang Sangat Ketat Menggunakan responseSchema
+    // Ini memaksa Gemini memilih antara mengembalikan objek 'data' atau 'error_layout'
+    const responseSchema = {
+      type: Type.OBJECT,
+      properties: {
+        is_layout_sesuai: {
+          type: Type.BOOLEAN,
+          description: "Berikan nilai false JIKA gambar yang dikirim adalah nota manual/tulisan tangan/e-wallet yang struknya tidak sesuai dengan targetFields yang diminta. Berikan true jika jenis struk sesuai.",
+        },
+        error_layout: {
+          type: Type.STRING,
+          description: "Wajib diisi dengan 'Gambar tidak sesuai dengan permintaan layout, buat layout baru' HANYA JIKA is_layout_sesuai bernilai false. Jika true, kosongkan saja atau beri string kosong.",
+        },
+        data: {
+          type: Type.OBJECT,
+          description: "Hasil ekstraksi data struk. Jika is_layout_sesuai bernilai false, biarkan objek ini kosong atau null.",
+          properties: propertiesSchema,
+        }
+      },
+      required: ["is_layout_sesuai", "error_layout"],
+    };
 
-    console.log(prompt)
+    // 3. Susun instruksi sejelas mungkin tanpa membingungkan AI
+    const prompt = `Tugas Anda adalah memvalidasi dan mengekstrak data dari gambar struk yang diberikan.
+
+Langkah Kerja Wajib:
+1. Periksa struktur gambar. Jika gambar berupa nota kontan tulisan tangan, struk belanja kelontong, sedangkan kolom targetFields yang diminta membutuhkan data digital khusus e-wallet (seperti nama bank, nomor rekening, bank tujuan), maka klasifikasikan ini sebagai layout TIDAK SESUAI (is_layout_sesuai: false).
+2. Jika layout TIDAK SESUAI, isi properti 'error_layout' dengan persis: "Gambar tidak sesuai dengan permintaan layout, buat layout baru".
+3. Jika layout SESUAI, isi 'is_layout_sesuai' dengan true, dan lakukan ekstraksi bidang berikut ke dalam objek 'data':
+${JSON.stringify(targetFields.map((f: any) => `${f.key} (${f.label})`), null, 2)}
+
+Catatan Pengolahan Nilai:
+- Format Tanggal: Wajib "DD MMM YYYY" (Contoh: "23 Des 2023").
+- Jika nomor referensi tidak ditemukan pada struk digital yang valid, isi dengan string acak 10 karakter alfanumerik.
+- Bersihkan spasi dan tanda minus (-) pada No.HP atau No.Rekening.`;
 
     const contents = [
       { 
@@ -55,7 +75,6 @@ export async function POST(req: Request) {
       { text: prompt },
     ];
 
-    // DAFTAR MODEL FAILOVER
     const availableModels = [
       "gemini-3-flash-preview", 
       "gemini-3.1-flash-lite-preview", 
@@ -66,24 +85,32 @@ export async function POST(req: Request) {
     
     for (const modelName of availableModels) {
       try {
-        console.log(`Mencoba model: ${modelName}`);
+        console.log(`Mencoba model dengan Schema: ${modelName}`);
         
-        // Perhatikan: Library @google/generative-ai biasanya menggunakan method generateContent
         const result = await ai.models.generateContent({
           model: modelName,
           contents: contents,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema, // <--- Memaksa AI mengikuti struktur JSON buatan kita
+          }
         });
 
-        if(!result || !result.text) throw new Error("Response tidak valid");
-        const text = result.text;
+        if (!result || !result.text) throw new Error("Response tidak valid");
+        
+        const parsedResult = JSON.parse(result.text);
 
-        // 3. Parsing JSON secara aman
-        const cleanJson = text.replace(/```json|```/g, "").trim();
-        const extractedData = JSON.parse(cleanJson);
+        // 4. Intersepsi di Backend: Jika AI mendeteksi layout tidak cocok, langsung kembalikan error kesukaanmu
+        if (parsedResult.is_layout_sesuai === false || parsedResult.error_layout) {
+          return NextResponse.json({ 
+            success: false,
+            error: parsedResult.error_layout || "Gambar tidak sesuai dengan permintaan layout, buat layout baru"
+          });
+        }
 
         return NextResponse.json({ 
           success: true, 
-          extractedData, 
+          extractedData: parsedResult.data, 
           modelUsed: modelName 
         });
         

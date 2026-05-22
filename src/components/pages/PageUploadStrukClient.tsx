@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, ChangeEvent, useMemo } from 'react';
+import { useState, useEffect, ChangeEvent, useMemo, useRef } from 'react';
 import { 
   Upload,
   Loader2,
@@ -43,6 +43,7 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
         showAdmin: true,
     });
     const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+    const errorRef = useRef<HTMLDivElement | null>(null);
 
     // --- MEMOIZE OPTIONS UNTUK SEARCHABLE SELECT ---
     const layoutOptions = useMemo(() => {
@@ -62,6 +63,14 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
     useEffect(() => {
         rebuildFormSchema(DefaultConfigLayout);
     }, []);
+        useEffect(() => {
+            if (alert && errorRef.current) {
+            errorRef.current.scrollIntoView({
+                behavior: "smooth", // Transisi scroll yang halus
+                block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+            });
+            }
+        }, [alert]);
 
     // Fungsi pembangun skema ulang data objek struk secara reaktif mengikuti config aktif
     const rebuildFormSchema = (targetConfig: ReceiptElement[]) => {
@@ -125,6 +134,7 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
     };
 
     const handleSubmit = async (): Promise<void> => {
+        setAlert(null);
         if (!formData.struk_image) {
             setAlert({
                 type: 'error',
@@ -177,6 +187,14 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
             //     "modelUsed": "gemini-3-flash-preview"
             // }
             console.log(aiResponse);
+
+            if(aiResponse.error) {
+                setAlert({
+                    'type': 'error',
+                    'message': aiResponse.error
+                });
+                return;
+            }
 
             // Perbarui data struk menggunakan gabungan data lama dan hasil ekstraksi AI yang baru
             let updatedStrukData = {
@@ -261,7 +279,11 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
                 </p>
             </header>
 
-            {alert?.message && <AlertLine message={alert.message} type={alert.type} className='mb-4' />}
+            {alert?.message && (
+                <div ref={errorRef}>
+                    <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+                </div>
+            )}
 
             <div className="space-y-6">
                 

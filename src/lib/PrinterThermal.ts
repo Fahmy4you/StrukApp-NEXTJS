@@ -16,20 +16,37 @@ export const printImageToThermal = async (device: any, imageSrc: string) => {
     img.onerror = reject;
   });
 
-  // 2. Setup Canvas untuk pemrosesan pixel gambar
+  // 2. Setup Canvas dengan Pangkas Margin Aman (Anti Terpotong & Pas di Kertas)
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const printWidth = 384; // Standar lebar printer thermal 58mm
-  const scale = printWidth / img.width;
-  canvas.width = printWidth;
-  canvas.height = img.height * scale;
 
   if (!ctx) throw new Error("Gagal membuat konteks canvas.");
 
-  // Beri background putih agar gambar transparan (PNG) tidak jadi hitam pekat
+  // Menggunakan 20px (kanan-kiri) agar space putih berkurang tanpa memotong text utama
+  const cropLeft = 23; 
+  const cropRight = 23; 
+  
+  const sourceX = cropLeft;
+  const sourceWidth = img.width - cropLeft - cropRight;
+  const sourceY = 0;
+  const sourceHeight = img.height;
+
+  // Hitung skala tinggi baru berdasarkan lebar konten yang sudah dipotong
+  const scale = printWidth / sourceWidth;
+  canvas.width = printWidth;
+  canvas.height = sourceHeight * scale;
+
+  // Beri background putih penuh pada canvas target
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  // Gambar ulang dengan memotong area pinggiran secara aman dan merentangkannya ke 384px penuh
+  ctx.drawImage(
+    img,
+    sourceX, sourceY, sourceWidth, sourceHeight, // Potongan gambar asli (Source)
+    0, 0, canvas.width, canvas.height             // Diregangkan penuh ke Printer (Destination)
+  );
 
   // 3. Konversi gambar ke format Bitmap 1-bit (Hitam-Putih murni)
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -76,23 +93,30 @@ export const printImageToThermal = async (device: any, imageSrc: string) => {
   combinedData.set(new Uint8Array(bitmap), header.length);
   combinedData.set(footer, header.length + bitmap.length);
 
-  // 5. Proses Pengiriman Data dengan Batasan Buffer (Aman & Stabil)
-  // Menggunakan ukuran 64 byte agar muat di RAM printer kecil
-  const chunkSize = 64; 
+  // =========================================================================
+  // 5. PROSES PENGIRIMAN DATA - THROTTLE PER BARIS GAMBAR (CEPAT & ANTI HANCUR)
+  // =========================================================================
+  const chunkSize = 20; 
+  const bytesPerLine = 48; 
+  let bytesSentInCurrentLine = 0;
 
   for (let i = 0; i < combinedData.length; i += chunkSize) {
     const chunk = combinedData.slice(i, i + chunkSize);
     
     if (characteristic.properties.writeWithoutResponse) {
       await characteristic.writeValueWithoutResponse(chunk);
+      bytesSentInCurrentLine += chunk.length;
       
-      // Jeda dinaikkan ke 20ms memberi waktu hardware membakar kertas sebelum data baru masuk
-      await new Promise(resolve => setTimeout(resolve, 20)); 
+      if (bytesSentInCurrentLine >= bytesPerLine) {
+        // Jeda 8ms memberi waktu hardware membakar kertas per baris horizontal
+        await new Promise(resolve => setTimeout(resolve, 8)); 
+        bytesSentInCurrentLine = 0;
+      }
     } else {
-      // Jalur lambat (fallback jika tipe printer lama mewajibkan konfirmasi)
       await characteristic.writeValue(chunk);
     }
   }
 
-  await trackUserPrintActivity('PRINT'); 
+  // Catat aktivitas setelah proses cetak selesai
+  await trackUserPrintActivity('PRINT');
 };

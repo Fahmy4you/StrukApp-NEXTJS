@@ -2,12 +2,12 @@
 import React, { FC, Dispatch, SetStateAction, ReactNode, useEffect } from 'react';
 import { X, Image as LucideImage, Printer, Loader2, BluetoothOff, FileText } from 'lucide-react';
 import { ReceiptElement } from '../pages/PageStrukManualClient';
-import { calculateReceiptTotal, formatIDR, formatReceiptDate, getReceiptMetadata } from '@/lib/Helpers';
+import { calculateReceiptTotal, formatIDR, formatReceiptDate } from '@/lib/Helpers';
 import { DownloadStruk } from '@/lib/Download';
 import { usePrinter } from '@/context/PrinterContext';
 import { printImageToThermal } from '@/lib/PrinterThermal';
 import { SettingsData } from '../../types/Settings';
-import { fontConfig, weightConstanta } from '@/lib/constanta';
+import { fontConfig, fontInternal, weightConstanta } from '@/lib/constanta';
 
 interface PreviewModalProps {
   show: boolean;
@@ -290,7 +290,7 @@ const PreviewModal: FC<PreviewModalProps> = ({
   if (!show) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <link href={fontConfig.googleFontsUrl} rel="stylesheet" />
+      {/* <link href={fontConfig.googleFontsUrl} rel="stylesheet" /> */}
 
       <div className="bg-slate-50 dark:bg-slate-900 w-full max-w-5xl h-[92vh] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
         
@@ -303,6 +303,16 @@ const PreviewModal: FC<PreviewModalProps> = ({
           {/* THE RECEIPT CONTAINER */}
           <div className="receipt-paper-thermal">
             <style>{`
+            ${fontInternal.map(font => 
+              font.variants.map(variant => `
+                @font-face {
+                  font-family: '${font.name}';
+                  src: url('${variant.path}') format('truetype');
+                  font-weight: ${variant.weight};
+                  font-style: normal;
+                }
+              `).join('\n')
+            ).join('\n')}
               .receipt-paper-thermal {
                 background-color: #ffffff;
                 width: 226px;

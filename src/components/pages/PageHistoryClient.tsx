@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Printer, 
@@ -43,10 +43,20 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
   const [strukData, setStrukData] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   
   // Filter States
   const [filterDate, setFilterDate] = useState('');
   const [filterLayout, setFilterLayout] = useState('');
+
+  useEffect(() => {
+        if (alert && errorRef.current) {
+        errorRef.current.scrollIntoView({
+            behavior: "smooth", // Transisi scroll yang halus
+            block: "center",    // Memosisikan elemen tepat di tengah layar agar langsung terlihat
+        });
+        }
+    }, [alert]);
 
   // Fetch Data dari DB
   const fetchReceipts = async () => {
@@ -221,7 +231,11 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
           </div>
         </header>
 
-        {alert?.message && <AlertLine message={alert.message} type={alert.type} className='mb-3' />}
+        {alert?.message && (
+            <div ref={errorRef}>
+                <AlertLine message={alert.message} type={alert.type} className='mb-4' />
+            </div>
+        )}
 
         {/* LOADING & EMPTY STATE LOGIC */}
         {isLoading ? (
