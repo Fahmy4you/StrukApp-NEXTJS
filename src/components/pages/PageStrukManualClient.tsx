@@ -24,6 +24,8 @@ import { AlertLine } from '@/components/alerts/AlertLine';
 import { createReceipt } from '@/models/Receipt';
 import { Layout } from '@prisma/client';
 import SearchableSelect from '../inputs/SearchableSelect';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 type ElementType = 'input_text' | 'input_image' | 'text' | 'separator';
 
@@ -95,6 +97,8 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
   const [formData, setFormData] = useState<Record<string, any>>({
     showAdmin: true,
   });
+  const session = useSession();
+  const router = useRouter();
 
   // --- MEMOIZE OPTIONS UNTUK SEARCHABLE SELECT ---
   const layoutOptions = useMemo(() => {
@@ -180,6 +184,10 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if(session.status !== "authenticated") {
+        router.push("/auth");
+        return;
+    }
 
     const findNameValue = () => {
         const priorityLabels = ['penerima', 'nama'];
@@ -343,7 +351,7 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
         <button 
           type="submit"
           disabled={isGenerating || isSwitchingLayout} 
-          className="w-full bg-slate-900 dark:bg-blue-600 hover:scale-[1.005] active:scale-[0.995] text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-blue-900/10 flex items-center justify-center gap-4 tracking-widest uppercase text-sm disabled:opacity-50"
+          className="w-full cursor-pointer bg-slate-900 dark:bg-blue-600 hover:scale-[1.005] active:scale-[0.995] text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-blue-900/10 flex items-center justify-center gap-4 tracking-widest uppercase text-sm disabled:opacity-50"
         >
           {isGenerating ? <Loader2 className="animate-spin" /> : <FileText size={20} />}
           {isGenerating ? "PROSES DATA..." : "PREVIEW"}

@@ -1,7 +1,8 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { LayersPlus, LayoutDashboard, LogOut, Settings, Timer, X } from 'lucide-react';
+import { DoorOpen, LayersPlus, LayoutDashboard, LogOut, Settings, Timer, X } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -13,6 +14,7 @@ interface SidebarItemProps {
 
 const SidebarDashboard = ({isSidebarOpen, setIsSidebarOpen, handleLogout}: { isSidebarOpen: boolean; setIsSidebarOpen: (open: boolean) => void; handleLogout: () => Promise<void> }) => {
   const pathname = usePathname();
+  const session = useSession();
 
   return (
     <aside 
@@ -72,12 +74,21 @@ const SidebarDashboard = ({isSidebarOpen, setIsSidebarOpen, handleLogout}: { isS
         </nav>
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-          <button onClick={handleLogout} className="cursor-pointer flex items-center gap-4 px-4 py-3 w-full rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all overflow-hidden">
-              <LogOut size={20} className="shrink-0" />
-              <span className={`font-medium transition-all duration-300 ${!isSidebarOpen ? 'lg:opacity-0 lg:invisible' : 'opacity-100'}`}>
-                Logout
-              </span>
-          </button>
+          {session.status === 'authenticated' ? (
+            <button onClick={handleLogout} className="cursor-pointer flex items-center gap-4 px-4 py-3 w-full rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all overflow-hidden">
+                <LogOut size={20} className="shrink-0" />
+                <span className={`font-medium transition-all duration-300 ${!isSidebarOpen ? 'lg:opacity-0 lg:invisible' : 'opacity-100'}`}>
+                  Logout
+                </span>
+            </button>
+          ) : (
+            <Link href={"/auth"} className="cursor-pointer flex items-center gap-4 px-4 py-3 w-full rounded-xl text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all overflow-hidden">
+                <DoorOpen size={20} className="shrink-0" />
+                <span className={`font-medium transition-all duration-300 ${!isSidebarOpen ? 'lg:opacity-0 lg:invisible' : 'opacity-100'}`}>
+                  Masuk
+                </span>
+            </Link>
+          )}
         </div>
     </aside>
   )

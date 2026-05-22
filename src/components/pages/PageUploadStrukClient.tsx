@@ -16,6 +16,8 @@ import { createReceipt } from '@/models/Receipt';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { Layout } from '@prisma/client';
 import SearchableSelect from '@/components/inputs/SearchableSelect';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Previews {
   struk_image: string | null;
@@ -44,6 +46,8 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
     });
     const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
     const errorRef = useRef<HTMLDivElement | null>(null);
+    const session = useSession();
+    const router = useRouter();
 
     // --- MEMOIZE OPTIONS UNTUK SEARCHABLE SELECT ---
     const layoutOptions = useMemo(() => {
@@ -135,6 +139,11 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
 
     const handleSubmit = async (): Promise<void> => {
         setAlert(null);
+        if(session.status !== "authenticated") {
+            router.push("/auth");
+            return;
+        }
+
         if (!formData.struk_image) {
             setAlert({
                 type: 'error',
@@ -350,7 +359,7 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
                         <button 
                           onClick={handleSubmit} 
                           disabled={isGenerating} 
-                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-blue-600/10 flex items-center justify-center gap-3 tracking-widest uppercase text-sm"
+                          className="w-full cursor-pointer bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-blue-600/10 flex items-center justify-center gap-3 tracking-widest uppercase text-sm"
                         >
                             {isGenerating ? <Loader2 className="animate-spin" /> : <FileText size={20} />}
                             {isGenerating ? "MENGOLAH DATA..." : "BUAT STRUK"}

@@ -13,7 +13,7 @@ export const getAllUsers = async (filters?: {
   order?: "asc" | "desc";
 }) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   const isAdmin = session.user.role === ROLES[0].value;
 
@@ -44,7 +44,7 @@ export const getAllUsers = async (filters?: {
  */
 export const getUserById = async (id: string) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   const isAdmin = session.user.role === ROLES[0].value;
 

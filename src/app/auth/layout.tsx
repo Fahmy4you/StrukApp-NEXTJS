@@ -15,11 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${poppinsFont.variable} antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <>
         <div className={`min-h-screen w-full flex items-center justify-center p-4 transition-colors duration-500 bg-slate-50 dark:bg-slate-950`}>
       
           {/* Background Ornaments */}
@@ -33,7 +29,6 @@ export default function RootLayout({
         </div>
         
         <DarkModeToggle/>
-      </body>
-    </html>
+    </>
   );
 }

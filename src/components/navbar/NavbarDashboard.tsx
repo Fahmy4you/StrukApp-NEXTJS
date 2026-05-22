@@ -1,6 +1,7 @@
 'use client';
 import { ChevronDown, ChevronLeft, LogOut, Menu, Settings2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -97,22 +98,29 @@ const NavbarDashboard = ({ isSidebarOpen, setIsSidebarOpen, handleLogout }: { is
             </div>
 
             <div className="relative">
-            <button 
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex cursor-pointer items-center gap-2 p-1 md:p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-slate-200 dark:border-slate-700"
-            >
-                <img 
-                src={session?.user?.image || "https://via.placeholder.com/150"} 
-                alt="profile" 
-                className="w-8 h-8 rounded-lg object-cover"
-                referrerPolicy="no-referrer"
-                />
-                <div className="hidden md:block text-left px-1">
-                <p className="text-xs font-bold leading-none">{session?.user?.name?.substring(0, 5) + "..."}</p>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">{session?.user?.role?.toUpperCase()}</p>
-                </div>
-                <ChevronDown size={14} className="text-slate-400 mr-1 hidden sm:block" />
-            </button>
+            
+            {!session?.user ? (
+              <Link href={"/auth"}
+                  className="block text-center py-2.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-all">
+                  Masuk dan Jelajahi Semua Fitur
+              </Link>
+            ) : (
+              <button 
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex cursor-pointer items-center gap-2 p-1 md:p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-slate-200 dark:border-slate-700">
+                  <img 
+                    src={session?.user?.image || "https://via.placeholder.com/150"} 
+                    alt="profile" 
+                    className="w-8 h-8 rounded-lg object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="hidden md:block text-left px-1">
+                    <p className="text-xs font-bold leading-none">{session?.user?.name?.substring(0, 5) + "..."}</p>
+                    <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">{session?.user?.role?.toUpperCase()}</p>
+                  </div>
+                  <ChevronDown size={14} className="text-slate-400 mr-1 hidden sm:block" />
+              </button>
+            )}
 
             {isProfileOpen && (
                 <div className="absolute top-full right-0 mt-4 w-56 md:w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl py-3 z-50 overflow-hidden animate-in fade-in zoom-in-95">

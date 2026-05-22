@@ -16,7 +16,7 @@ export const getAllReceipts = async (filters?: {
   order?: "asc" | "desc";
 }) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   // 1. Cek apakah user adalah Admin
   const isAdmin = session.user.role === ROLES[0].value || session.user.role === ROLES[0].id; // "admin"
@@ -62,7 +62,7 @@ export const getAllReceipts = async (filters?: {
 
 export const getReceiptById = async (id: string) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   // 1. Cek apakah user adalah Admin
   const isAdmin = session.user.role === ROLES[0].value || session.user.role === ROLES[0].id; // "admin"

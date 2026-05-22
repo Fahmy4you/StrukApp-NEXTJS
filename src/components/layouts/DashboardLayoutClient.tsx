@@ -5,15 +5,27 @@ import { useEffect, useState } from "react";
 import LoadingScreenSkeleton from "@/components/loading/LoadingScreen";
 import { useSession } from "next-auth/react";
 import { handleLogout } from "@/lib/actions";
+import { useRouter } from "next/navigation";
 
 const DashboardLayoutClient = ({ children }: { children: React.ReactNode }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
     const { status } = useSession();
+    const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const handleLogoutConfirmation = async () => {
       const konfirmasi = confirm("Apakah Anda yakin ingin keluar?");
       if (konfirmasi) {
-        await handleLogout();
+        setLoading(true);
+
+        try {
+          await handleLogout();
+        } catch (error) {
+          
+        } finally {{
+          setLoading(false);
+          router.push("/auth");
+        }}
       }
     };
     
@@ -30,7 +42,7 @@ const DashboardLayoutClient = ({ children }: { children: React.ReactNode }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    if (status === "loading") return <LoadingScreenSkeleton />;
+    if (status == "loading" || loading) return <LoadingScreenSkeleton />;
       
     return (
         // 1. Tambahkan h-screen dan overflow-hidden di sini agar body tidak scroll

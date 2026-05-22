@@ -4,8 +4,6 @@ import { poppinsFont } from "@/lib/fonts";
 import DarkModeToggle from "@/components/button/DarkModeToggle";
 import DashboardLayoutClient from '@/components/layouts/DashboardLayoutClient';
 import { SessionProvider } from "next-auth/react";
-import { auth, signOut } from "@/auth";
-import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Dashboard | Struk Digital - Buat Struk Digital dengan Mudah",
@@ -17,15 +15,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
-  const session = await auth();
-  const user = await prisma.user.findUnique({
-    where: { id: session?.user.id },
-  });
-
-  if(!user) {
-    await signOut();
-  }
 
   return (
     <html

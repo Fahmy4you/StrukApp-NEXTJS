@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 export async function trackUserPrintActivity(actionType: 'PDF' | 'IMAGE' | 'PRINT') {
   const session = await auth();
-  if (!session || !session.user?.id) redirect("/login");
+  if (!session || !session.user?.id) return [];
 
   const now = new Date();
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());

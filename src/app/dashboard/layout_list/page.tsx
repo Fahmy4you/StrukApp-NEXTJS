@@ -14,13 +14,13 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
   Trash2,
 } from 'lucide-react';
 import { deleteLayout, getAllLayouts } from '@/models/Layout';
 import { Layout } from '@prisma/client';
 import { formatDateIndo } from '@/lib/Helpers';
 import { AlertLine } from '@/components/alerts/AlertLine';
+import { useSession } from 'next-auth/react';
 
 interface Filters {
   date: string;
@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1); // FIX: Tambahkan state currentPage yang sempat hilang
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
+  const session = useSession();
   
   // State filter 
   const [tempFilters, setTempFilters] = useState<Filters>({
@@ -70,8 +71,12 @@ const App: React.FC = () => {
 
   // Memanggil fungsi fetchLayout saat halaman pertama kali dibuka
   useEffect(() => {
-    fetchLayout();
-  }, []);
+    if(session.status === "authenticated") {
+      fetchLayout();
+    }
+    setIsLoading(false)
+  }, [session.status]);
+
   useEffect(() => {
         if (alert && errorRef.current) {
         errorRef.current.scrollIntoView({
@@ -298,16 +303,8 @@ const App: React.FC = () => {
             <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-full mb-4">
               <FileText size={48} className="text-slate-400" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tidak ada hasil ditemukan</h3>
-            <p className="text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-2 text-sm md:text-base px-4">
-              Coba sesuaikan kata kunci pencarian atau filter Anda.
-            </p>
-            <button 
-              onClick={resetFilters}
-              className="mt-6 text-blue-600 font-bold hover:underline flex items-center gap-2 text-sm"
-            >
-              <RotateCcw size={16} /> Reset Filter
-            </button>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tidak ada layout ditemukan</h3>
+            <p className="text-slate-500 text-sm mt-1">Coba ubah kata kunci pencarian atau filter Anda.</p>
           </div>
         )}
 

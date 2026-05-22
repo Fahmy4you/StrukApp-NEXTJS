@@ -11,7 +11,7 @@ export const getAllSettings = async (filters?: {
   order?: "asc" | "desc";
 }) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   // 1. Proteksi: Hanya Admin yang boleh list semua settings
   const isAdmin = session.user.role === ROLES[0].value;
@@ -43,7 +43,7 @@ export const getAllSettings = async (filters?: {
 
 export const getSettingByUserId = async (targetUserId?: string) => {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect("/auth");
 
   const isAdmin = session.user.role === ROLES[0].value;
   // Jika bukan admin, paksa ambil ID diri sendiri

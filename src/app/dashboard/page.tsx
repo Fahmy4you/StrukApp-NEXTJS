@@ -6,7 +6,8 @@ import {
   ArrowRight,
   PlusCircle,
   UploadCloud,
-  Layers
+  Layers,
+  User
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -40,6 +41,7 @@ const App = () => {
     totalPdf: 0,
     totalGambar: 0,
     totalPrint: 0,
+    totalUser: 0,
   });
 
   async function fetchStats() {
@@ -62,21 +64,31 @@ const App = () => {
     <div>
       <header className="mb-8">
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          {getGreeting()}, {session?.user?.name}
+          {getGreeting()}, {session?.user?.name ?? 'Guest'}
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm md:text-base">
-          Berikut ringkasan performa hari ini.
+          Berikut ringkasan performa hari ini dari website kami.
         </p>
       </header>
 
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard 
-          title="Layout Struk" 
-          value={stats.totalLayout.toLocaleString()} 
-          icon={<Layers />} 
-          color="blue" 
-        />
+        {stats.totalUser > 0 ? (
+          <StatCard 
+            title="Total Pengguna" 
+            value={stats.totalUser.toLocaleString()} 
+            icon={<User />} 
+            color="blue" 
+          />
+        ) : (
+          <StatCard 
+            title="Layout Struk" 
+            value={stats.totalLayout.toLocaleString()} 
+            icon={<Layers />} 
+            color="blue" 
+          />
+        )}
+
         
         <StatCard 
           title="Struk via PDF" 

@@ -24,8 +24,8 @@ import { getAllLayouts } from '@/models/Layout';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { DefaultConfigLayout } from '@/lib/constanta';
 import PreviewModal from '@/components/modal/PreviewModal';
-import { getSettingByUserId } from '@/models/Settings';
 import { SettingsData } from '@/types/Settings';
+import { useSession } from 'next-auth/react';
 
 type ReceiptWithLayout = Prisma.ReceiptGetPayload<{
   include: { layout: true }
@@ -44,6 +44,7 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
   const [config, setConfig] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const errorRef = useRef<HTMLDivElement | null>(null);
+  const session = useSession();
   
   // Filter States
   const [filterDate, setFilterDate] = useState('');
@@ -113,13 +114,19 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
 
   useEffect(() => {
     setMounted(true);
-    fetchReceipts();
-  }, [filterDate]); // Re-fetch saat filter tanggal berubah
+    if(session.status === 'authenticated') {
+      fetchReceipts();
+    }
+    setIsLoading(false)
+  }, [filterDate]);
 
   useEffect(() => {
     setMounted(true);
-    fetchLayout();
-  }, [])
+    if(session.status === 'authenticated') {
+      fetchLayout();
+    }
+    setIsLoading(false)
+  }, []);
 
   // Logika Client-side Search & Layout Filter
   const filteredData = useMemo(() => {

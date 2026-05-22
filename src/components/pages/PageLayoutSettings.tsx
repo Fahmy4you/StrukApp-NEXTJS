@@ -25,6 +25,8 @@ import { DefaultConfigLayout, fontConfig, weightConstanta } from '@/lib/constant
 import { ReceiptElement } from '@/components/pages/PageStrukManualClient';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { createLayout, updateLayout } from '@/models/Layout';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 type CustomFontWeight = keyof typeof weightConstanta; // 'reg' | 'semi' | 'bold'
 
@@ -106,6 +108,8 @@ const PageLayoutSettings = ({name, config, idLayout}: {name?: string, config?: R
   const [loading, setLoading] = useState(false);
   const topRef = React.useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
+  const session = useSession();
+  const router = useRouter();
 
   useEffect(() => {
       if (alert && errorRef.current) {
@@ -177,6 +181,11 @@ const PageLayoutSettings = ({name, config, idLayout}: {name?: string, config?: R
   };
 
   const handleSaveLayout = async () => {
+    if(session.status == "unauthenticated") {
+      router.push('/auth');
+      return;
+    }
+
     setLoading(true);
     try {
       let result;
@@ -700,7 +709,7 @@ const PageLayoutSettings = ({name, config, idLayout}: {name?: string, config?: R
                 </div>
               </div>
 
-              <button onClick={handleSaveLayout} className="w-full mt-4 py-3.5 bg-slate-900 dark:bg-blue-600 text-white rounded-xl font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/10 group">
+              <button onClick={handleSaveLayout} className="w-full cursor-pointer mt-4 py-3.5 bg-slate-900 dark:bg-blue-600 text-white rounded-xl font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-blue-600/10 group">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 {loading ? 'Menyimpan...' : 'Simpan Layout'}
               </button>
