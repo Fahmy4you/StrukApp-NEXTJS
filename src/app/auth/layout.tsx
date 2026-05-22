@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { poppinsFont } from "@/lib/fonts";
 import DarkModeToggle from "@/components/button/DarkModeToggle";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "Authentikasi | Struk Digital - Buat Struk Digital dengan Mudah",
@@ -26,7 +27,9 @@ export default function RootLayout({
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/20 blur-[100px]" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/20 blur-[100px]" />
           </div>
-        {children}
+          <SessionProvider>
+            {children}
+          </SessionProvider>
         </div>
         
         <DarkModeToggle/>

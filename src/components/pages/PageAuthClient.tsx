@@ -1,15 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FcGoogle } from 'react-icons/fc'; 
 import { signInWithGoogle } from '@/lib/AuthenticationAction';
 import { AlertLine } from '@/components/alerts/AlertLine';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function PageAuthClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const session = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session.status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [session.status]);
 
   const handleGoogleLogin = async () => {
+    console.log(session);
     setIsLoading(true);
     try {
       await signInWithGoogle();

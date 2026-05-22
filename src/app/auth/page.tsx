@@ -18,7 +18,7 @@ export default async function AuthPage() {
   return (
     <AuthenticationCard 
       title="Selamat Datang"
-      paragraph="Masukkan detail akun Anda untuk masuk atau daftar untuk menikmati semua fitur kami"
+      paragraph="Masuk untuk mulai mengelola, mendesain, dan mencetak struk digital Anda dengan mudah."
     >
       <PageAuthClient />
     </AuthenticationCard>
