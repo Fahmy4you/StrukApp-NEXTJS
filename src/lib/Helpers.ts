@@ -15,6 +15,18 @@ export const getGreeting = () => {
   }
 };
 
+export const cleanCurrencyInput = (text: string) => {
+  let cleanText = String(text).replace(/Rp/gi, '');
+
+  // Hapus semua tanda titik yang berfungsi sebagai pemisah ribuan
+  cleanText = cleanText.replace(/\./g, '');
+  
+  // Ambil hanya angka yang tersisa
+  const cleanNumber = cleanText.replace(/[^0-9]/g, '');
+  
+  return cleanNumber == '' || cleanNumber == '0' ? '0' : cleanNumber;
+};
+
 export const formatIDR = (val: any) => {
     const num = Number(val) || 0;
     return new Intl.NumberFormat('id-ID').format(num);

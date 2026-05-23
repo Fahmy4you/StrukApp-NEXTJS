@@ -86,7 +86,7 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
   
   // --- STATE CONFIG LAYOUT ---
@@ -99,6 +99,12 @@ export default function PageStrukManualClient({ settings, layoutData }: { settin
   });
   const session = useSession();
   const router = useRouter();
+
+  useEffect(() => {
+      if (session.status === 'unauthenticated') {
+        setAlert({ message: "Semua Data Yang Ditampilkan Adalah Data Default/Umum, Silahkan Login Terlebih Dahulu", type: 'warning' });
+      }
+    }, [session.status]);
 
   // --- MEMOIZE OPTIONS UNTUK SEARCHABLE SELECT ---
   const layoutOptions = useMemo(() => {

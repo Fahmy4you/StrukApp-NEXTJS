@@ -63,7 +63,6 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
   const fetchReceipts = async () => {
     setIsLoading(true);
     try {
-      // Kita panggil getAllReceipts (Pastikan ini diarahkan ke API route atau Server Action)
       const data = await getAllReceipts({
         startDateCreatedAt: filterDate ? new Date(filterDate) : undefined,
       });
@@ -81,7 +80,6 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
   };
 
   const fetchLayout = async () => {
-    setIsLoading(true)
     try {
       const data = await getAllLayouts();
       setLayoutData(data);
@@ -91,8 +89,6 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
         'message': 'Gagal mengambil data layout, reload halaman'
       })
       console.error("Gagal mengambil data layout: ", error)
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -114,19 +110,21 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
 
   useEffect(() => {
     setMounted(true);
-    if(session.status === 'authenticated') {
-      fetchReceipts();
-    }
-    setIsLoading(false)
-  }, [filterDate]);
 
-  useEffect(() => {
-    setMounted(true);
-    if(session.status === 'authenticated') {
-      fetchLayout();
+    if (session.status === 'loading') {
+      setIsLoading(true);
+      return;
     }
-    setIsLoading(false)
-  }, []);
+
+    if (session.status === 'authenticated') {
+      fetchReceipts();
+      fetchLayout();
+    } 
+    
+    if (session.status === 'unauthenticated') {
+      setIsLoading(false);
+    }
+  }, [filterDate, session.status]); 
 
   // Logika Client-side Search & Layout Filter
   const filteredData = useMemo(() => {
@@ -255,7 +253,7 @@ const PageHistoryClient = ({settingsData}: {settingsData: SettingsData | null}) 
             <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
               <Inbox className="w-8 h-8 text-slate-400" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tidak ada struk ditemukan</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tidak ada history struk ditemukan</h3>
             <p className="text-slate-500 text-sm mt-1">Coba ubah kata kunci pencarian atau filter Anda.</p>
             {(searchTerm || activeFilterCount > 0) && (
               <button 

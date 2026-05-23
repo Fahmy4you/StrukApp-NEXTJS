@@ -137,6 +137,12 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
         }
     };
 
+    useEffect(() => {
+        if (session.status === 'unauthenticated') {
+          setAlert({ message: "Semua Data Yang Ditampilkan Adalah Data Default/Umum, Silahkan Login Terlebih Dahulu", type: 'warning' });
+        }
+      }, [session.status]);
+
     const handleSubmit = async (): Promise<void> => {
         setAlert(null);
         if(session.status !== "authenticated") {
@@ -258,6 +264,7 @@ const PageUploadStrukClient = ({ settings, layoutData }: { settings: SettingsDat
 
             if(saveInHistory.success) {
                 setShowModal(true);
+                console.log(strukData)
             } else {
                 setAlert({
                     'type': 'error',

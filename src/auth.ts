@@ -6,7 +6,8 @@ import { DEFAULT_SETTINGS_FIRST_LOGIN, DefaultEwalletLayout, DefaultListrikLayou
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt", maxAge: 1 * 24 * 60 * 60, updateAge: 0 },
+  session: { strategy: "jwt", maxAge: 1 * 24 * 60 * 60, updateAge: 15 * 60 },
+  trustHost: true,
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,

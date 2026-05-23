@@ -1,12 +1,14 @@
 'use server';
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 export const handleLogout = async () => {
   const session = await auth();
   if (!session) return; 
 
   await signOut();
+  redirect("/auth");
 };
 
 export async function getUserDashboardStats({ 

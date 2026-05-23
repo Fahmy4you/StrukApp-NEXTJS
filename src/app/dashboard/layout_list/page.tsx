@@ -21,6 +21,8 @@ import { Layout } from '@prisma/client';
 import { formatDateIndo } from '@/lib/Helpers';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { useSession } from 'next-auth/react';
+import { DefaultConfigLayout, DefaultEwalletLayout, DefaultListrikLayout } from '@/lib/constanta';
+import { useRouter } from 'next/navigation';
 
 interface Filters {
   date: string;
@@ -37,9 +39,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [layoutData, setLayoutData] = useState<Layout[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1); // FIX: Tambahkan state currentPage yang sempat hilang
-  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
   const session = useSession();
+  const router = useRouter();
   
   // State filter 
   const [tempFilters, setTempFilters] = useState<Filters>({
@@ -69,12 +72,55 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (session.status === 'unauthenticated') {
+      setAlert({ message: "Semua Data Yang Ditampilkan Adalah Data Default/Umum, Silahkan Login Terlebih Dahulu", type: 'warning' });
+    }
+  }, [session.status]);
+
   // Memanggil fungsi fetchLayout saat halaman pertama kali dibuka
   useEffect(() => {
+    if (session.status === 'loading') {
+      setIsLoading(true);
+      return;
+    }
+    
     if(session.status === "authenticated") {
       fetchLayout();
     }
-    setIsLoading(false)
+    
+    if (session.status === 'unauthenticated') {
+      setLayoutData([
+        {
+          id: "gd9yhinkjiw8huhh9un",
+          name: "Layout E-Wallet Default",
+          userId: null,
+          isDefault: true,
+          config: DefaultConfigLayout as any,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: "gd9yhinkjiw89un",
+          name: "Layout E-Wallet Default",
+          userId: null,
+          isDefault: true,
+          config: DefaultEwalletLayout as any,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: "8989jnHiuhhe",
+          name: "Layout Token Listrik Default",
+          userId: null,
+          isDefault: false,
+          config: DefaultListrikLayout as any,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ] as any);
+      setIsLoading(false);
+    }
   }, [session.status]);
 
   useEffect(() => {
@@ -135,6 +181,10 @@ const App: React.FC = () => {
   const isAnyFilterActive = Boolean(activeFilters.date || activeFilters.time);
 
   const handleDelete = async (id: string) => {
+    if(session.status !== "unauthenticated") {
+      router.push("/auth");
+      return;
+    }
     if (!confirm("Apakah Anda yakin ingin menghapus layout ? riwayat berhubungan akan dihapus !")) return;
 
     try {

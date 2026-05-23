@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
-import { formatIDR, formatReceiptDate } from '@/lib/Helpers';
+import { cleanCurrencyInput, formatIDR, formatReceiptDate } from '@/lib/Helpers';
 import { DefaultConfigLayout } from '@/lib/constanta';
 import { auth } from '@/auth';
 import { trackUserPrintActivity } from '@/models/UserStatistic';
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
                 let rawValue = formData[key] || "-";
                 const currencyTypes = ['Nominal', 'Admin_Fee', 'total_keseluruhan', 'Currency', 'Admin_fee'];
                 if (currencyTypes.includes(el.dataType) && rawValue != '-' && rawValue != '' ) {
-                    const cleanNum = String(rawValue).replace(/[^0-9.-]/g, '');
+                    const cleanNum = cleanCurrencyInput(rawValue);
                     rawValue = `Rp ${formatIDR(cleanNum)}`;
                 }
 

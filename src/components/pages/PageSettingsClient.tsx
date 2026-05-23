@@ -13,6 +13,8 @@ import { AdminRange, SettingsData } from '@/types/Settings';
 import { AlertLine } from '@/components/alerts/AlertLine';
 import { usePrinter } from '@/context/PrinterContext';
 import { upsertSettingsAction } from '@/models/Settings';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialData }) => {
   // --- States ---
@@ -44,6 +46,8 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   // Context Printer State
   const [isSearching, setIsSearching] = useState(false);
   const { printerDevice, setPrinterDevice, isPrinterConnected, setIsPrinterConnected } = usePrinter();
+  const router = useRouter();
+  const session = useSession();
 
   useEffect(() => {
       if (alert && errorRef.current) {
@@ -85,6 +89,12 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
       autoReconnectPrinter();
     }
   }, [isPrinterConnected, setPrinterDevice, setIsPrinterConnected]);
+
+  useEffect(() => {
+    if (session.status === 'unauthenticated') {
+      setAlert({ message: "Semua Data Yang Ditampilkan Adalah Data Default/Umum, Silahkan Login Terlebih Dahulu", type: 'warning' });
+    }
+  }, [session.status]);
 
   // --- BLUETOOTH CONNECT ---
   const connectPrinter = async () => {
@@ -173,6 +183,10 @@ const PageSettingsClient: React.FC<{ initialData?: SettingsData }> = ({ initialD
   const handleSave = async () => {
     setLoading(true);
     let finalLogoPath = logoPreview;
+
+    if(session.status !== 'unauthenticated') {
+      router.push('/auth');
+    }
 
     try {
       if (logoPreview && logoPreview.startsWith("data:")) {

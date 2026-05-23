@@ -2,7 +2,7 @@
 import React, { FC, Dispatch, SetStateAction, ReactNode, useEffect } from 'react';
 import { X, Image as LucideImage, Printer, Loader2, BluetoothOff, FileText } from 'lucide-react';
 import { ReceiptElement } from '../pages/PageStrukManualClient';
-import { calculateReceiptTotal, formatIDR, formatReceiptDate } from '@/lib/Helpers';
+import { calculateReceiptTotal, cleanCurrencyInput, formatIDR, formatReceiptDate } from '@/lib/Helpers';
 import { DownloadStruk } from '@/lib/Download';
 import { usePrinter } from '@/context/PrinterContext';
 import { printImageToThermal } from '@/lib/PrinterThermal';
@@ -39,6 +39,7 @@ const PreviewModal: FC<PreviewModalProps> = ({
 
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
+    console.log(formData)
     try {
       await DownloadStruk(formData, config);
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -94,15 +95,40 @@ const PreviewModal: FC<PreviewModalProps> = ({
   useEffect(() => {
     if (!config || !Array.isArray(config)) return;
 
-    const { updates } = calculateReceiptTotal({ config, formData, settings });
+    // 1. Salin formData saat ini untuk dibersihkan sebelum dikalkulasi
+    const sanitizedFormData = { ...formData };
 
+    // 2. Iterasi seluruh elemen konfigurasi struk
+    config.forEach(element => {
+      // Cek apakah elemen ini bertipe mata uang/nominal
+      const isCurrencyElement = 
+        element.dataType === 'Currency' || 
+        element.dataType === 'Admin_Fee' ||
+        element.dataType === 'total_keseluruhan' ||
+        element.label?.toUpperCase().includes('NOMINAL') || 
+        element.label?.toUpperCase().includes('ADMIN');
+
+      if (isCurrencyElement) {
+        const key = normalizeKey(element.label);
+        if (formData[key]) {
+          // 🔥 Gunakan fungsi helper yang sudah kamu import untuk membersihkan datanya
+          sanitizedFormData[key] = cleanCurrencyInput(formData[key]);
+        }
+      }
+    });
+
+    // 3. Lempar data yang sudah bersih dari titik ke fungsi kalkulator total
+    const { updates } = calculateReceiptTotal({ config, formData: sanitizedFormData, settings });
+
+    // 4. Update state formData utama jika ada perubahan hasil perhitungan
     setFormData(prev => {
-        const isDifferent = Object.keys(updates).some(k => prev[k] !== updates[k]);
-        if (!isDifferent) return prev;
-        return { ...prev, ...updates };
+      const isDifferent = Object.keys(updates).some(k => prev[k] !== updates[k]);
+      if (!isDifferent) return prev;
+      return { ...prev, ...updates };
     });
 
   }, [
+      // Ambil field nominal dan admin secara dinamis berdasarkan label yang ada di config
       formData[normalizeKey(config?.find(el => el.dataType === 'Currency' || el.dataType === 'Nominal')?.label || "")], 
       formData[normalizeKey(config?.find(el => el.dataType === 'Admin_Fee')?.label || "")],
       formData[normalizeKey(config?.find(el => el.dataType === 'Referensi')?.label || "")],
@@ -175,7 +201,7 @@ const PreviewModal: FC<PreviewModalProps> = ({
 
       case 'input_text':
         const key = normalizeKey(element.label);
-        const hasValue = formData[key] !== undefined && formData[key] !== null && formData[key] !== '';
+        const hasValue = formData[key] != undefined && formData[key] != null && formData[key] != '' && formData[key] != "null";
         const rawValue = hasValue ? formData[key] : '-';
 
         const isCurrency = 
@@ -186,14 +212,12 @@ const PreviewModal: FC<PreviewModalProps> = ({
           element.label?.toUpperCase().includes('ADMIN');
 
         let displayValue = rawValue;
-        if (isCurrency && rawValue != '-') {
-          displayValue = `Rp ${formatIDR(rawValue)}`;
-        }
 
-        const cleanCurrencyInput = (text: string) => {
-          const cleanNumber = text.replace(/[^0-9]/g, '');
-          return cleanNumber === '' ? '0' : cleanNumber;
-        };
+        // 2. Bersihkan rawValue terlebih dahulu sebelum dikonversi oleh formatIDR
+        if (isCurrency && rawValue != '-') {
+          const angkaBersih = cleanCurrencyInput(rawValue); // <--- Memaksa "100.000" atau "Rp 100.000" menjadi string angka murni "100000"
+          displayValue = `Rp ${formatIDR(angkaBersih)}`;   // <--- Sekarang formatIDR dijamin menerima angka bersih tanpa titik
+        }
 
         const isStacked = element.labelLayout === 'stacked';
         const isCentered = element.position === 'center';
@@ -222,8 +246,8 @@ const PreviewModal: FC<PreviewModalProps> = ({
                 className={`uppercase ${isStacked ? 'text-[0.85em]' : 'pr-[5px]'}`}
                 style={{ 
                   fontSize: `${element.labelFontSize || 12}px`,
-                  fontWeight: weightConstanta[element.labelFontWeight as CustomFontWeight] || 400, // Pemisahan Weight Label
-                  letterSpacing: `${element.labelLetterSpacing ?? 0}px` // Pemisahan Spacing Label
+                  fontWeight: weightConstanta[element.labelFontWeight as CustomFontWeight] || 400,
+                  letterSpacing: `${element.labelLetterSpacing ?? 0}px`
                 }}
               >
                 {element.label}
@@ -240,8 +264,8 @@ const PreviewModal: FC<PreviewModalProps> = ({
               className={`outline-none focus:bg-yellow-50 break-all ${!isStacked && !isCentered ? 'text-right' : ''}`}
               style={{ 
                 fontSize: `${element.valueFontSize || 12}px`,
-                fontWeight: weightConstanta[element.valueFontWeight as CustomFontWeight] || 400, // Pemisahan Weight Value
-                letterSpacing: `${element.valueLetterSpacing ?? 0}px` // Pemisahan Spacing Value
+                fontWeight: weightConstanta[element.valueFontWeight as CustomFontWeight] || 400,
+                letterSpacing: `${element.valueLetterSpacing ?? 0}px`
               }}
             >
               {displayValue}
